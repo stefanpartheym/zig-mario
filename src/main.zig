@@ -1,24 +1,64 @@
 const std = @import("std");
+const rl = @import("raylib");
+const entt = @import("entt");
+const paa = @import("paa.zig");
+const application = @import("application.zig");
+const Game = @import("game.zig").Game;
+const entities = @import("entities.zig");
+const comp = @import("components.zig");
+const systems = @import("systems.zig");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var alloc = paa.init();
+    defer alloc.deinit();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    var app = application.Application.init(
+        alloc.allocator(),
+        application.ApplicationConfig{
+            .title = "zig-mario",
+            .display = .{
+                .width = 800,
+                .height = 600,
+                .high_dpi = true,
+                .target_fps = 60,
+            },
+        },
+    );
+    defer app.deinit();
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    var reg = entt.Registry.init(alloc.allocator());
+    defer reg.deinit();
 
-    try bw.flush(); // don't forget to flush!
+    var game = Game.new(&app, &reg);
+    game.player = entities.createRenderable(
+        game.reg,
+        comp.Position.new(100, 100),
+        comp.Shape.rectangle(100, 100),
+        comp.Visual.stub(),
+        null,
+    );
+
+    app.start();
+    while (app.isRunning()) {
+        handleAppInput(&game);
+        systems.beginFrame(rl.Color.black);
+        systems.draw(game.reg);
+        if (game.debug_mode) {
+            systems.drawDebug(game.reg, rl.Color.yellow);
+        }
+        systems.endFrame();
+    }
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+fn handleAppInput(game: *Game) void {
+    if (rl.windowShouldClose() or
+        rl.isKeyPressed(rl.KeyboardKey.key_escape) or
+        rl.isKeyPressed(rl.KeyboardKey.key_q))
+    {
+        game.app.shutdown();
+    }
+
+    if (rl.isKeyPressed(rl.KeyboardKey.key_f1)) {
+        game.toggleDebugMode();
+    }
 }
