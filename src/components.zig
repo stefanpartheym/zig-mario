@@ -1,4 +1,5 @@
 const rl = @import("raylib");
+const entt = @import("entt");
 
 const m = @import("math/mod.zig");
 const sprites = @import("graphics/mod.zig").sprites;
@@ -24,6 +25,28 @@ pub const Position = struct {
 
     pub fn fromVec2(value: m.Vec2) Self {
         return new(value.x(), value.y());
+    }
+
+    pub fn toVec2(self: *const Self) m.Vec2 {
+        return m.Vec2.new(self.x, self.y);
+    }
+
+    pub fn zero() Self {
+        return Self.new(0, 0);
+    }
+};
+
+pub const Velocity = struct {
+    const Self = @This();
+
+    x: f32,
+    y: f32,
+
+    pub fn new(x: f32, y: f32) Self {
+        return Self{
+            .x = x,
+            .y = y,
+        };
     }
 
     pub fn zero() Self {
@@ -90,6 +113,12 @@ pub const Movement = struct {
             .next_direction = direction,
             .previous_direction = direction,
         };
+    }
+
+    pub fn update(self: *Self, direction: Direction) void {
+        self.previous_direction = self.direction;
+        self.direction = direction;
+        // self.next_direction = direction;
     }
 };
 
@@ -300,4 +329,23 @@ pub const Cooldown = struct {
 // Game specific components
 //------------------------------------------------------------------------------
 
-// TODO:
+pub const Collision = struct {
+    const Self = @This();
+
+    on_collision: ?*const fn (*entt.Registry, entt.Entity, entt.Entity) void = undefined,
+
+    pub fn new() Self {
+        return Self{ .on_collision = null };
+    }
+};
+
+pub const Gravity = struct {
+    const Self = @This();
+
+    /// Factor by which the default gravity force is multiplied.
+    factor: f32,
+
+    pub fn new() Self {
+        return Self{ .factor = 1 };
+    }
+};

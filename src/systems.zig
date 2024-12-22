@@ -1,8 +1,12 @@
 const rl = @import("raylib");
 const entt = @import("entt");
-
+const zb = @import("zbox2d");
 const comp = @import("components.zig");
 const Rect = @import("math/mod.zig").Rect;
+
+//-----------------------------------------------------------------------------
+// Misc
+//-----------------------------------------------------------------------------
 
 pub fn updateLifetimes(reg: *entt.Registry) void {
     const delta_time = rl.getFrameTime();
@@ -29,6 +33,10 @@ pub fn updateAnimations(reg: *entt.Registry) void {
     }
 }
 
+//-----------------------------------------------------------------------------
+// Drawing
+//-----------------------------------------------------------------------------
+
 pub fn beginFrame(clear_color: ?rl.Color) void {
     rl.beginDrawing();
     rl.clearBackground(clear_color orelse rl.Color.blank);
@@ -38,9 +46,8 @@ pub fn endFrame() void {
     rl.endDrawing();
 }
 
-/// Draw debug information and entity shape AABB's.
-pub fn drawDebug(reg: *entt.Registry, color: rl.Color) void {
-    rl.drawFPS(10, 10);
+/// Draw entity shape AABB's.
+pub fn debugDraw(reg: *entt.Registry, color: rl.Color) void {
     var view = reg.view(.{ comp.Position, comp.Shape, comp.Visual }, .{});
     var iter = view.entityIterator();
     while (iter.next()) |entity| {
@@ -56,6 +63,11 @@ pub fn drawDebug(reg: *entt.Registry, color: rl.Color) void {
             comp.Visual.color(color, true),
         );
     }
+}
+
+/// Draw FPS
+pub fn debugDrawFps() void {
+    rl.drawFPS(10, 10);
 }
 
 pub fn draw(reg: *entt.Registry) void {

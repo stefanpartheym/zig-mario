@@ -13,6 +13,20 @@ const GameState = enum {
     gameover,
 };
 
+pub const GameEntities = struct {
+    const Self = @This();
+
+    player: ?entt.Entity,
+
+    pub fn new() Self {
+        return Self{ .player = null };
+    }
+
+    pub fn clear(self: *Self) void {
+        self.player = null;
+    }
+};
+
 /// Contains all game related state.
 pub const Game = struct {
     const Self = @This();
@@ -23,7 +37,7 @@ pub const Game = struct {
     reg: *entt.Registry,
     debug_mode: bool,
 
-    player: entt.Entity,
+    entities: GameEntities,
     score: u32,
     lives: u8,
     /// Tracks the time elapsed since the the player started the game.
@@ -40,7 +54,7 @@ pub const Game = struct {
             .config = &app.config,
             .reg = reg,
             .debug_mode = false,
-            .player = undefined,
+            .entities = GameEntities.new(),
             .score = 0,
             .lives = 3,
             .timer = Timer.new(),
@@ -80,5 +94,12 @@ pub const Game = struct {
 
     pub fn toggleDebugMode(self: *Self) void {
         self.debug_mode = !self.debug_mode;
+    }
+
+    pub fn getPlayer(self: *Self) entt.Entity {
+        if (self.entities.player == null) {
+            self.entities.player = self.reg.create();
+        }
+        return self.entities.player.?;
     }
 };

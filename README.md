@@ -38,8 +38,8 @@ zig build -Dtarget=wasm32-emscripten
 
 | Key                | Description                  |
 | ------------------ | ---------------------------- |
-| `H`, `Arrow Left`  | (_TODO_) Move left           |
-| `L`, `Arrow Right` | (_TODO_) Move right          |
+| `H`, `Arrow Left`  | Move left                    |
+| `L`, `Arrow Right` | Move right                   |
 | `Space`            | (_TODO_) Shoot               |
 | `Enter`            | (_TODO_) Start/pause/resume  |
 | `F1`               | Toggle debug mode            |

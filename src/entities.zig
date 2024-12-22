@@ -2,18 +2,28 @@
 const entt = @import("entt");
 const comp = @import("components.zig");
 
-/// Create a renderable entity.
-pub fn createRenderable(
+/// Adds (or replaces) all necessary components for the entity to be renderable.
+pub fn setRenderable(
     reg: *entt.Registry,
+    entity: entt.Entity,
     position: comp.Position,
     shape: comp.Shape,
     visual: comp.Visual,
     visual_layer_opt: ?comp.VisualLayer,
-) entt.Entity {
-    const e = reg.create();
-    reg.add(e, position);
-    reg.add(e, shape);
-    reg.add(e, visual);
-    if (visual_layer_opt) |visual_layer| reg.add(e, visual_layer);
-    return e;
+) void {
+    reg.addOrReplace(entity, position);
+    reg.addOrReplace(entity, shape);
+    reg.addOrReplace(entity, visual);
+    if (visual_layer_opt) |visual_layer| reg.add(entity, visual_layer);
+}
+
+/// Adds (or replaces) all necessary components for the entity to be movable.
+pub fn setMovable(
+    reg: *entt.Registry,
+    entity: entt.Entity,
+    speed: comp.Speed,
+) void {
+    reg.addOrReplace(entity, speed);
+    reg.addOrReplace(entity, comp.Velocity.zero());
+    reg.addOrReplace(entity, comp.Movement.new(.none));
 }

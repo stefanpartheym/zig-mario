@@ -123,12 +123,14 @@ fn addDependencies(
     const zalgebra_dep = b.dependency("zalgebra", options);
     const zalgebra_mod = zalgebra_dep.module("zalgebra");
     const entt_dep = b.dependency("entt", options);
+    const zbox2d_dep = b.dependency("zbox2d", options);
     const raylib_dep = b.dependency("raylib-zig", options);
     const raylib_mod = raylib_dep.module("raylib");
 
     // Add dependencies as imports.
     artifact.root_module.addImport("zalgebra", zalgebra_mod);
     artifact.root_module.addImport("entt", entt_dep.module("zig-ecs"));
+    artifact.root_module.addImport("zbox2d", zbox2d_dep.module("zbox2d"));
     artifact.root_module.addImport("raylib", raylib_mod);
 
     // Link libraries.
