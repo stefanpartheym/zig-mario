@@ -224,6 +224,7 @@ pub const Visual = union(VisualType) {
     },
     sprite: struct {
         texture: *const rl.Texture,
+        /// Position and dimensions of the sprite on the texture.
         rect: Rect,
     },
     animation: struct {

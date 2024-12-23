@@ -4,8 +4,10 @@ const zb = @import("zbox2d");
 const entt = @import("entt");
 const m = @import("math/mod.zig");
 const paa = @import("paa.zig");
+const rlhelper = @import("rlhelper.zig");
 const application = @import("application.zig");
 const Game = @import("game.zig").Game;
+const tiled = @import("tiled.zig");
 const entities = @import("entities.zig");
 const comp = @import("components.zig");
 const systems = @import("systems.zig");
@@ -19,8 +21,8 @@ pub fn main() !void {
         application.ApplicationConfig{
             .title = "zig-mario",
             .display = .{
-                .width = 800,
-                .height = 600,
+                .width = 960,
+                .height = 640,
                 .high_dpi = true,
                 .target_fps = 60,
             },
@@ -32,9 +34,15 @@ pub fn main() !void {
     defer reg.deinit();
 
     var game = Game.new(&app, &reg);
-    reset(&game);
-
     app.start();
+
+    var tilemap = try tiled.Tilemap.fromFile(alloc.allocator(), "./assets/map/map.tmj");
+    defer tilemap.deinit();
+    const tileset = try tilemap.getTileset(1);
+    const tileset_texture = try rlhelper.loadTexture(alloc.allocator(), tileset.image_path);
+
+    reset(&game, &tilemap, tileset, &tileset_texture);
+
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
         handleAppInput(&game);
@@ -81,6 +89,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     var movement = reg.get(comp.Movement, player);
 
     vel.x = 0;
+    vel.y = 0;
     movement.update(.none);
 
     if (rl.isKeyDown(rl.KeyboardKey.key_h) or
@@ -94,9 +103,26 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
         vel.x += scaled_speed;
         movement.update(.right);
     }
+
+    if (rl.isKeyDown(rl.KeyboardKey.key_k) or
+        rl.isKeyDown(rl.KeyboardKey.key_up))
+    {
+        vel.y -= scaled_speed;
+        movement.update(.up);
+    } else if (rl.isKeyDown(rl.KeyboardKey.key_j) or
+        rl.isKeyDown(rl.KeyboardKey.key_down))
+    {
+        vel.y += scaled_speed;
+        movement.update(.down);
+    }
 }
 
-fn reset(game: *Game) void {
+fn reset(
+    game: *Game,
+    tilemap: *const tiled.Tilemap,
+    tileset: *const tiled.Tileset,
+    tileset_texture: *const rl.Texture,
+) void {
     const reg = game.reg;
 
     // Clear entity references.
@@ -106,6 +132,40 @@ fn reset(game: *Game) void {
     var it = reg.entities();
     while (it.next()) |entity| {
         reg.destroy(entity);
+    }
+
+    // Setup tilemap.
+    {
+        for (tilemap.data.layers) |layer| {
+            if (!layer.visible) continue;
+            var x: usize = 0;
+            var y: usize = 0;
+            for (layer.data) |tile_id| {
+                const tile_width: f32 = @floatFromInt(tilemap.data.tilewidth);
+                const tile_height: f32 = @floatFromInt(tilemap.data.tileheight);
+                const tile_x: f32 = @floatFromInt(x);
+                const tile_y: f32 = @floatFromInt(y);
+                // Skip empty tiles.
+                if (tile_id != 0) {
+                    const entity = reg.create();
+                    entities.setRenderable(
+                        reg,
+                        entity,
+                        comp.Position.new(tile_x * tile_width, tile_y * tile_height),
+                        comp.Shape.rectangle(tile_width, tile_height),
+                        comp.Visual.sprite(tileset_texture, tileset.getSpriteRect(tile_id)),
+                        null,
+                    );
+                }
+
+                // Update tile position.
+                x += 1;
+                if (x >= tilemap.data.width) {
+                    x = 0;
+                    y += 1;
+                }
+            }
+        }
     }
 
     // Setup new player entity.
@@ -125,34 +185,7 @@ fn reset(game: *Game) void {
             player,
             comp.Speed.uniform(350),
         );
-        reg.add(player, comp.Collision.new());
-        reg.add(player, comp.Gravity.new());
-    }
-
-    // Setup map.
-    {
-        const ground1 = reg.create();
-        const ground_height = 60;
-        entities.setRenderable(
-            reg,
-            ground1,
-            comp.Position.new(0, game.config.getDisplayHeight() - ground_height),
-            comp.Shape.rectangle(600, ground_height),
-            comp.Visual.color(rl.Color.dark_brown, false),
-            null,
-        );
-        reg.add(ground1, comp.Collision.new());
-        const wall1 = reg.create();
-        const wall_height = 200;
-        entities.setRenderable(
-            reg,
-            wall1,
-            comp.Position.new(400, game.config.getDisplayHeight() - wall_height),
-            comp.Shape.rectangle(40, wall_height),
-            comp.Visual.color(rl.Color.dark_gray, false),
-            null,
-        );
-        reg.add(wall1, comp.Collision.new());
+        // reg.add(player, comp.Gravity.new());
     }
 }
 
