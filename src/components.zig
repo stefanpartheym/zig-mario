@@ -3,6 +3,7 @@ const entt = @import("entt");
 
 const m = @import("math/mod.zig");
 const sprites = @import("graphics/mod.zig").sprites;
+const Timer = @import("timer.zig").Timer;
 const Rect = m.Rect;
 const Vec2 = m.Vec2;
 
@@ -42,15 +43,20 @@ pub const Velocity = struct {
     x: f32,
     y: f32,
 
-    pub fn new(x: f32, y: f32) Self {
+    pub fn new() Self {
         return Self{
-            .x = x,
-            .y = y,
+            .x = 0,
+            .y = 0,
         };
     }
 
-    pub fn zero() Self {
-        return Self.new(0, 0);
+    pub fn toVec2(self: *const Self) m.Vec2 {
+        return m.Vec2.new(self.x, self.y);
+    }
+
+    pub fn set(self: *Self, value: m.Vec2) void {
+        self.x = value.x();
+        self.y = value.y();
     }
 };
 
@@ -60,8 +66,16 @@ pub const Speed = struct {
     x: f32,
     y: f32,
 
+    pub fn new(x: f32, y: f32) Self {
+        return Self{ .x = x, .y = y };
+    }
+
     pub fn uniform(value: f32) Self {
-        return Self{ .x = value, .y = value };
+        return Self.new(value, value);
+    }
+
+    pub fn toVec2(self: *const Self) m.Vec2 {
+        return m.Vec2.new(self.x, self.y);
     }
 };
 
@@ -183,6 +197,10 @@ pub const Shape = union(ShapeType) {
             .rectangle => return self.rectangle.height,
             .circle => return self.circle.radius * 2,
         }
+    }
+
+    pub fn getSize(self: *const Self) m.Vec2 {
+        return m.Vec2.new(self.getWidth(), self.getHeight());
     }
 
     fn getTriangleVectorLength(self: *const Self) Vec2 {
@@ -348,5 +366,17 @@ pub const Gravity = struct {
 
     pub fn new() Self {
         return Self{ .factor = 1 };
+    }
+};
+
+pub const Player = struct {
+    const Self = @This();
+
+    jump_timer: Timer,
+
+    pub fn new() Self {
+        return Self{
+            .jump_timer = Timer.new(),
+        };
     }
 };

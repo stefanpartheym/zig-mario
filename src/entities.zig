@@ -24,6 +24,5 @@ pub fn setMovable(
     speed: comp.Speed,
 ) void {
     reg.addOrReplace(entity, speed);
-    reg.addOrReplace(entity, comp.Velocity.zero());
-    reg.addOrReplace(entity, comp.Movement.new(.none));
+    reg.addOrReplace(entity, comp.Velocity.new());
 }
