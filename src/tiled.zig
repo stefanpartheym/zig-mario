@@ -29,7 +29,7 @@ pub const Tileset = struct {
         const file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
         const size = try file.getEndPos();
-        const buffer = try allocator.alloc(u8, size);
+        const buffer = try allocator.alloc(u8, @intCast(size));
         defer allocator.free(buffer);
         _ = try file.readAll(buffer);
         const result = try std.json.parseFromSlice(
@@ -119,7 +119,7 @@ pub const Tilemap = struct {
         const file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
         const size = try file.getEndPos();
-        const buffer = try allocator.alloc(u8, size);
+        const buffer = try allocator.alloc(u8, @intCast(size));
         defer allocator.free(buffer);
         _ = try file.readAll(buffer);
         const result = try std.json.parseFromSlice(

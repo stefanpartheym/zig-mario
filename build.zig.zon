@@ -43,10 +43,6 @@
             .url = "git+https://github.com/Not-Nik/raylib-zig.git#de8c2d458516fc971f0859c4473e3381767d2471",
             .hash = "122058d3ea6318efb819d0bffba630afd1a459fa3a99b4bfe4b680a937d5de04d2fc",
         },
-        .zbox2d = .{
-            .url = "git+https://github.com/stefanpartheym/zbox2d.git#59f22600f798aa539267c017b7b4eceaafaa78f7",
-            .hash = "1220dbaa4bd31b94a469772b40a00074c29ad8181b0d4ff3bb83b32e60a5b7afad8c",
-        },
     },
     .paths = .{
         "build.zig",

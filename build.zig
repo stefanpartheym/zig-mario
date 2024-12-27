@@ -30,7 +30,8 @@ fn buildNative(b: *std.Build, options: Options) !void {
     b.installArtifact(exe);
 
     // Add dependencies to the executable.
-    addDependencies(b, exe, options);
+    addBaseDependencies(b, exe, options);
+    addExeDependencies(b, exe, options);
 
     // Run executable.
     const run_cmd = b.addRunArtifact(exe);
@@ -42,16 +43,17 @@ fn buildNative(b: *std.Build, options: Options) !void {
     run_step.dependOn(&run_cmd.step);
 
     // Declare executable tests.
-    const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
+    const unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/test.zig"),
         .target = options.target,
         .optimize = options.optimize,
     });
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+    addBaseDependencies(b, unit_tests, options);
+    const run_unit_tests = b.addRunArtifact(unit_tests);
 
     // Run tests.
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_exe_unit_tests.step);
+    test_step.dependOn(&run_unit_tests.step);
 }
 
 fn buildWasm(b: *std.Build, options: Options) !void {
@@ -70,7 +72,8 @@ fn buildWasm(b: *std.Build, options: Options) !void {
     b.sysroot = zemscripten.emsdkPath(emsdk_dep, "");
 
     // Add dependencies to wasm library.
-    addDependencies(b, wasm, options);
+    addBaseDependencies(b, wasm, options);
+    addExeDependencies(b, wasm, options);
     const zemscripten_dep = b.dependency("zemscripten", .{});
     wasm.root_module.addImport("zemscripten", zemscripten_dep.module("root"));
 
@@ -95,7 +98,7 @@ fn buildWasm(b: *std.Build, options: Options) !void {
             .settings = emcc_settings,
             .use_preload_plugins = true,
             .embed_paths = &.{},
-            .preload_paths = &.{},
+            .preload_paths = &.{.{ .src_path = "assets/" }},
             .install_dir = .{ .custom = install_dir },
             .shell_file_path = shell_file_path,
         },
@@ -114,25 +117,29 @@ fn buildWasm(b: *std.Build, options: Options) !void {
     b.step("emrun", "Build and open the web app locally using emrun").dependOn(emrun_step);
 }
 
-fn addDependencies(
+fn addBaseDependencies(
     b: *std.Build,
     artifact: *std.Build.Step.Compile,
     options: Options,
 ) void {
     // Dependencies
     const zalgebra_dep = b.dependency("zalgebra", options);
-    const zalgebra_mod = zalgebra_dep.module("zalgebra");
+    // Add dependencies as imports.
+    artifact.root_module.addImport("zalgebra", zalgebra_dep.module("zalgebra"));
+}
+
+fn addExeDependencies(
+    b: *std.Build,
+    artifact: *std.Build.Step.Compile,
+    options: Options,
+) void {
+    // Dependencies
     const entt_dep = b.dependency("entt", options);
-    const zbox2d_dep = b.dependency("zbox2d", options);
     const raylib_dep = b.dependency("raylib-zig", options);
     const raylib_mod = raylib_dep.module("raylib");
-
     // Add dependencies as imports.
-    artifact.root_module.addImport("zalgebra", zalgebra_mod);
     artifact.root_module.addImport("entt", entt_dep.module("zig-ecs"));
-    artifact.root_module.addImport("zbox2d", zbox2d_dep.module("zbox2d"));
     artifact.root_module.addImport("raylib", raylib_mod);
-
     // Link libraries.
     artifact.linkLibrary(raylib_dep.artifact("raylib"));
 }
