@@ -49,7 +49,7 @@ pub fn main() !void {
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
         applyGravity(game.reg, 9.81, delta_time);
-        handleCollision(game.reg);
+        try handleCollision(game.reg, alloc.allocator());
         updatePosition(game.reg);
         systems.beginFrame(rl.Color.black);
         systems.draw(game.reg);
@@ -136,15 +136,17 @@ fn reset(
             var x: usize = 0;
             var y: usize = 0;
             for (layer.data) |tile_id| {
-                const tile_width: f32 = @floatFromInt(tilemap.data.tilewidth);
-                const tile_height: f32 = @floatFromInt(tilemap.data.tileheight);
-                const tile_x: f32 = @floatFromInt(x);
-                const tile_y: f32 = @floatFromInt(y);
                 // Skip empty tiles.
                 if (tile_id != 0) {
                     const entity = reg.create();
-                    const pos = comp.Position.new(tile_x * tile_width, tile_y * tile_height);
-                    const shape = comp.Shape.rectangle(tile_width, tile_height);
+                    const pos = comp.Position.new(
+                        @floatFromInt(x * tilemap.data.tilewidth),
+                        @floatFromInt(y * tilemap.data.tileheight),
+                    );
+                    const shape = comp.Shape.rectangle(
+                        @floatFromInt(tilemap.data.tilewidth),
+                        @floatFromInt(tilemap.data.tileheight),
+                    );
                     entities.setRenderable(
                         reg,
                         entity,
@@ -153,6 +155,7 @@ fn reset(
                         comp.Visual.sprite(tileset_texture, tileset.getSpriteRect(tile_id)),
                         null,
                     );
+                    // Add collision for first layer only.
                     if (layer.id < 2) {
                         reg.add(entity, comp.Collision.new());
                     }
@@ -197,22 +200,52 @@ fn reset(
 // Physics
 //------------------------------------------------------------------------------
 
-fn handleCollision(reg: *entt.Registry) void {
+fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
+    const BroadphaseCollision = struct { aabb: tc.Aabb, result: tc.CollisionResult };
+
     var view = reg.view(.{ comp.Position, comp.Shape, comp.Velocity, comp.Collision }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const pos = view.get(comp.Position, entity);
         const shape = view.get(comp.Shape, entity);
         var vel = view.get(comp.Velocity, entity);
-        const origin = tc.Aabb.new(pos.toVec2(), shape.getSize());
+        const aabb = tc.Aabb.new(pos.toVec2(), shape.getSize());
+        const broadphase_aabb = tc.Aabb.fromMovement(pos.toVec2(), shape.getSize(), vel.value);
+
+        var collisions = std.ArrayList(BroadphaseCollision).init(allocator);
+        defer collisions.deinit();
+
+        // Perform broadphase collision detection.
         var collider_view = reg.view(.{ comp.Position, comp.Shape, comp.Collision }, .{});
         var collider_it = collider_view.entityIterator();
         while (collider_it.next()) |collider| {
             if (collider == entity) continue;
             const collider_pos = collider_view.get(comp.Position, collider);
-            const collider_shape = collider_view.get(comp.Shape, collider);
-            const target = tc.Aabb.new(collider_pos.toVec2(), collider_shape.getSize());
-            const result = tc.aabbToAabb(origin, target, vel.value);
+            const collider_size = collider_view.get(comp.Shape, collider);
+            const collider_aabb = tc.Aabb.new(collider_pos.toVec2(), collider_size.getSize());
+            if (broadphase_aabb.intersects(collider_aabb)) {
+                const result = tc.aabbToAabb(aabb, collider_aabb, vel.value);
+                if (result.hit and !result.normal.eql(m.Vec2.zero())) {
+                    try collisions.append(.{
+                        .aabb = collider_aabb,
+                        .result = result,
+                    });
+                }
+            }
+        }
+
+        // Sort collisions by time to resolve nearest collision first.
+        const SortContext = struct {
+            /// Compare function to sort collision results by time.
+            fn sort(_: void, lhs: BroadphaseCollision, rhs: BroadphaseCollision) bool {
+                return lhs.result.time < rhs.result.time;
+            }
+        };
+        std.sort.insertion(BroadphaseCollision, collisions.items, {}, SortContext.sort);
+
+        // Resolve collisions in order.
+        for (collisions.items) |collision| {
+            const result = tc.aabbToAabb(aabb, collision.aabb, vel.value);
             if (result.hit) {
                 vel.value = tc.resolveCollision(result, vel.value);
             }
