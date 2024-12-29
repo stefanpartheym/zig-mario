@@ -1,6 +1,7 @@
 const std = @import("std");
 const m = @import("math/mod.zig");
 
+/// Axis-aligned bounding box.
 pub const Aabb = struct {
     const Self = @This();
 
@@ -45,7 +46,8 @@ pub const CollisionResult = struct {
 
     /// Indicates if there was a collision.
     hit: bool,
-    /// Normal of collision.
+    /// Contact normal.
+    /// Indicates in which direction a potential collision should be resolved.
     normal: m.Vec2,
     /// Point of contact.
     contact: m.Vec2,
@@ -146,6 +148,7 @@ pub fn rayToAabb(
     );
 }
 
+/// Check for collision between two `Aabb` objects.
 pub fn aabbToAabb(origin: Aabb, target: Aabb, velocity: m.Vec2) CollisionResult {
     if (velocity.eql(m.Vec2.zero())) {
         return CollisionResult.miss();
@@ -162,9 +165,12 @@ pub fn aabbToAabb(origin: Aabb, target: Aabb, velocity: m.Vec2) CollisionResult 
 pub fn resolveCollision(result: CollisionResult, velocity: m.Vec2) m.Vec2 {
     const velocity_abs = m.Vec2.new(@abs(velocity.x()), @abs(velocity.y()));
     return velocity.add(velocity_abs.mul(result.normal).scale(result.remaining_time));
+    // FIXME: Use dot product for a more mathematically pure implementation.
+    // const dotprod = velocity.dot(result.normal);
+    // return velocity.sub(result.normal.scale(dotprod).scale(result.remaining_time));
 }
 
-test "resolveCollision push velocity back to contact point" {
+test "resolveCollision: push velocity back to contact point" {
     const velocity = m.Vec2.new(1, 0);
     const origin = Aabb.new(m.Vec2.zero(), m.Vec2.new(1, 1));
     const target = Aabb.new(m.Vec2.new(1.5, 0), m.Vec2.new(1, 1));
@@ -174,7 +180,7 @@ test "resolveCollision push velocity back to contact point" {
     try std.testing.expectEqual(0, resolved_velocity.y());
 }
 
-test "aabbToAabb sliding past bottom right corner" {
+test "aabbToAabb: sliding past bottom right corner" {
     const velocity = m.Vec2.up().negate();
     const origin = Aabb.new(m.Vec2.new(2, 2), m.Vec2.new(1, 1));
     const target = Aabb.new(m.Vec2.zero(), m.Vec2.new(2, 2));
@@ -188,7 +194,7 @@ test "aabbToAabb sliding past bottom right corner" {
     try std.testing.expectEqual(0, result.remaining_time);
 }
 
-test "aabbToAabb collide with right edge directly (no offset)" {
+test "aabbToAabb: collide with right edge directly (no offset)" {
     const velocity = m.Vec2.left();
     const origin = Aabb.new(m.Vec2.new(2, 1.5), m.Vec2.new(1, 1));
     const target = Aabb.new(m.Vec2.zero(), m.Vec2.new(2, 2));
@@ -202,7 +208,7 @@ test "aabbToAabb collide with right edge directly (no offset)" {
     try std.testing.expectEqual(1, result.remaining_time);
 }
 
-test "aabbToAabb collide with left edge directly" {
+test "aabbToAabb: collide with left edge directly" {
     const velocity = m.Vec2.new(1, 0);
     const origin = Aabb.new(m.Vec2.zero(), m.Vec2.new(1, 1));
     const target = Aabb.new(m.Vec2.new(1.5, 0), m.Vec2.new(1, 1));
@@ -216,7 +222,7 @@ test "aabbToAabb collide with left edge directly" {
     try std.testing.expectEqual(0.5, result.remaining_time);
 }
 
-test "aabbToAabb collide with bottom edge directly" {
+test "aabbToAabb: collide with bottom edge directly" {
     const velocity = m.Vec2.new(0, -2);
     const origin = Aabb.new(m.Vec2.new(1, 5), m.Vec2.new(2, 2));
     const target = Aabb.new(m.Vec2.zero(), m.Vec2.new(4, 4));
@@ -230,7 +236,7 @@ test "aabbToAabb collide with bottom edge directly" {
     try std.testing.expectEqual(0.5, result.remaining_time);
 }
 
-test "aabbToAabb collide with corner" {
+test "aabbToAabb: collide with corner" {
     const velocity = m.Vec2.new(2, 2);
     const origin = Aabb.new(m.Vec2.new(0, 0), m.Vec2.new(2, 2));
     const target = Aabb.new(m.Vec2.new(3, 3), m.Vec2.new(2, 2));
@@ -244,7 +250,7 @@ test "aabbToAabb collide with corner" {
     try std.testing.expectEqual(result.remaining_time, 0.5);
 }
 
-test "rayToAabb collide with top edge" {
+test "rayToAabb: collide with top edge" {
     const ray_origin = m.Vec2.new(2, 2);
     const ray_dir = m.Vec2.new(8, 4);
     const target = Aabb.new(m.Vec2.new(4, 4), m.Vec2.new(4, 4));
@@ -258,7 +264,7 @@ test "rayToAabb collide with top edge" {
     try std.testing.expectEqual(0.5, result.remaining_time);
 }
 
-test "rayToAabb collide with left edge" {
+test "rayToAabb: collide with left edge" {
     const ray_origin = m.Vec2.new(0, 1);
     const ray_dir = m.Vec2.new(2, 2);
     const target = Aabb.new(m.Vec2.new(1, 1), m.Vec2.new(2, 2));
@@ -272,7 +278,7 @@ test "rayToAabb collide with left edge" {
     try std.testing.expectEqual(0.5, result.remaining_time);
 }
 
-test "rayToAabb collide with right edge" {
+test "rayToAabb: collide with right edge" {
     const ray_origin = m.Vec2.new(5, 5);
     const ray_dir = m.Vec2.new(-2, -3);
     const target = Aabb.new(m.Vec2.new(1, 1), m.Vec2.new(3, 3));
@@ -286,7 +292,7 @@ test "rayToAabb collide with right edge" {
     try std.testing.expectEqual(0.5, result.remaining_time);
 }
 
-test "rayToAabb collide with corner" {
+test "rayToAabb: collide with corner" {
     const ray_origin = m.Vec2.new(0, 0);
     const ray_dir = m.Vec2.new(2, 2);
     const target = Aabb.new(m.Vec2.new(1, 1), m.Vec2.new(2, 2));
