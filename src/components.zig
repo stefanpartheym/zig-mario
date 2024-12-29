@@ -75,7 +75,7 @@ pub const Direction = enum {
     left,
     right,
 
-    pub fn toVec2(self: Self) m.Vec2 {
+    pub fn normal(self: Self) m.Vec2 {
         return switch (self) {
             // NOTE:
             // Direction `up` and `down` return their counterpart.
