@@ -85,32 +85,31 @@ fn handleAppInput(game: *Game) void {
 fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const reg = game.reg;
     const player_entity = game.getPlayer();
-    var player = reg.get(comp.Player, player_entity);
     const speed = reg.get(comp.Speed, player_entity);
-    const scaled_speed = speed.toVec2().scale(delta_time);
+    var player = reg.get(comp.Player, player_entity);
     var vel = reg.get(comp.Velocity, player_entity);
 
     // Reset velocity at the beginning of each frame.
     vel.x = 0;
 
-    if (rl.isKeyDown(rl.KeyboardKey.key_h) or
-        rl.isKeyDown(rl.KeyboardKey.key_left))
-    {
-        vel.x -= scaled_speed.x();
-    } else if (rl.isKeyDown(rl.KeyboardKey.key_l) or
-        rl.isKeyDown(rl.KeyboardKey.key_right))
-    {
-        vel.x += scaled_speed.x();
-    }
+    var direction = if (rl.isKeyDown(rl.KeyboardKey.key_h) or rl.isKeyDown(rl.KeyboardKey.key_left))
+        m.Vec2.left()
+    else if (rl.isKeyDown(rl.KeyboardKey.key_l) or rl.isKeyDown(rl.KeyboardKey.key_right))
+        m.Vec2.right()
+    else
+        m.Vec2.zero();
 
     if (rl.isKeyDown(.key_space)) {
         if (player.jump_timer.state <= 0.025) {
             player.jump_timer.update(delta_time);
-            vel.y -= scaled_speed.y();
+            direction.yMut().* = m.Vec2.up().negate().y();
         }
     } else if (rl.isKeyUp(.key_space)) {
         player.jump_timer.reset();
     }
+
+    const scaled_speed = speed.toVec2().mul(direction).scale(delta_time);
+    vel.set(vel.toVec2().add(scaled_speed));
 }
 
 fn reset(
