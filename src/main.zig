@@ -225,7 +225,7 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
             const collider_aabb = tc.Aabb.new(collider_pos.toVec2(), collider_size.getSize());
             if (broadphase_aabb.intersects(collider_aabb)) {
                 const result = tc.aabbToAabb(aabb, collider_aabb, vel.value);
-                if (result.hit and !result.normal.eql(m.Vec2.zero())) {
+                if (result.hit) {
                     try collisions.append(.{
                         .aabb = collider_aabb,
                         .result = result,

@@ -87,10 +87,11 @@ pub fn rayToAabb(
     const target_corner = target.pos.sub(ray_origin).add(target.size);
     var far = target_corner.mul(invdir);
 
-    // FIXME: Check for NaN values in case of multiplying infinity by infinity.
-    // if (std.math.isNan(near.x()) or std.math.isNan(near.y()) or std.math.isNan(far.x()) or std.math.isNan(far.y())) {
-    //     return CollisionResult.miss();
-    // }
+    // Check for NaN values in case of multiplying infinity by 0.
+    const isNan = std.math.isNan;
+    if (isNan(near.x()) or isNan(near.y()) or isNan(far.x()) or isNan(far.y())) {
+        return CollisionResult.miss();
+    }
 
     // Swap near and far components to account for negative ray directions.
     if (near.x() > far.x()) {
