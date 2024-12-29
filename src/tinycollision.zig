@@ -13,7 +13,7 @@ pub const Aabb = struct {
 
     /// Creates an `Aabb` from the movement of a rectangle.
     /// The result will cover both the origin and the destination rectangles.
-    /// Useful for boradphase collision detection.
+    /// Useful for broadphase collision detection.
     pub fn fromMovement(pos: m.Vec2, size: m.Vec2, vel: m.Vec2) Self {
         const dest = pos.add(vel);
         const origin = m.Vec2.new(
@@ -31,7 +31,7 @@ pub const Aabb = struct {
     }
 
     /// Checks if this `Aabb` intersects another `Aabb`.
-    /// Useful for boradphase collision detection.
+    /// Useful for broadphase collision detection.
     pub fn intersects(self: *const Self, other: Aabb) bool {
         return self.pos.x() < other.pos.x() + other.size.x() and
             self.pos.x() + self.size.x() > other.pos.x() and
@@ -54,7 +54,9 @@ pub const CollisionResult = struct {
     /// Remaining time.
     remaining_time: f32,
 
-    pub fn noHit() Self {
+    /// Creates a `CollisionResult` that indicates, that the target has been
+    /// missed and has not been collided with.
+    pub fn miss() Self {
         return Self.new(false, m.Vec2.zero(), m.Vec2.zero(), 1, 0);
     }
 
@@ -69,57 +71,67 @@ pub const CollisionResult = struct {
     }
 };
 
-pub fn rayToAabb(ray_origin: m.Vec2, ray_dir: m.Vec2, target: Aabb) CollisionResult {
+pub fn rayToAabb(
+    /// Origin of the ray.
+    ray_origin: m.Vec2,
+    /// Direction of the ray.
+    ray_dir: m.Vec2,
+    /// Target to check for collision.
+    target: Aabb,
+) CollisionResult {
+    // Calculate inverse direction to avoid subsequent divisions.
     const invdir = m.Vec2.new(1 / ray_dir.x(), 1 / ray_dir.y());
+    // Calculate near and far contact points.
     const target_origin = target.pos.sub(ray_origin);
-    // TODO: Multiply by `invdir` to replace division.
-    // TODO: Rename `entry` to `near`.
-    var entry = m.Vec2.new(
-        target_origin.x() / ray_dir.x(),
-        target_origin.y() / ray_dir.y(),
-    );
+    var near = target_origin.mul(invdir);
     const target_corner = target.pos.sub(ray_origin).add(target.size);
-    // TODO: Multiply by `invdir` to replace division.
-    // TODO: Rename `exit` to `far`.
-    var exit = m.Vec2.new(
-        target_corner.x() / ray_dir.x(),
-        target_corner.y() / ray_dir.y(),
-    );
+    var far = target_corner.mul(invdir);
 
-    if (entry.x() > exit.x()) {
-        const temp = entry.x();
-        entry.xMut().* = exit.x();
-        exit.xMut().* = temp;
-    }
-    if (entry.y() > exit.y()) {
-        const temp = entry.y();
-        entry.yMut().* = exit.y();
-        exit.yMut().* = temp;
-    }
+    // FIXME: Check for NaN values in case of multiplying infinity by infinity.
+    // if (std.math.isNan(near.x()) or std.math.isNan(near.y()) or std.math.isNan(far.x()) or std.math.isNan(far.y())) {
+    //     return CollisionResult.miss();
+    // }
 
-    if (entry.x() > exit.y() or entry.y() > exit.x()) {
-        return CollisionResult.noHit();
+    // Swap near and far components to account for negative ray directions.
+    if (near.x() > far.x()) {
+        const temp = near.x();
+        near.xMut().* = far.x();
+        far.xMut().* = temp;
+    }
+    if (near.y() > far.y()) {
+        const temp = near.y();
+        near.yMut().* = far.y();
+        far.yMut().* = temp;
     }
 
-    const entry_time = @max(entry.x(), entry.y());
-    const exit_time = @min(exit.x(), exit.y());
+    // No collision, if near components are greater (or equal) than far components.
+    if (near.x() >= far.y() or near.y() >= far.x()) {
+        return CollisionResult.miss();
+    }
 
-    // No hit, if ray points in opposite direction.
+    const entry_time = @max(near.x(), near.y());
+    const exit_time = @min(far.x(), far.y());
+
+    // No collision, if ray points away from target.
     if (exit_time < 0) {
-        return CollisionResult.noHit();
+        return CollisionResult.miss();
     }
 
-    const normal = if (entry.x() > entry.y())
-        if (invdir.x() < 0)
+    // Calculate collision normal.
+    const normal = if (near.x() > near.y())
+        if (ray_dir.x() < 0)
             m.Vec2.new(1, 0)
         else
             m.Vec2.new(-1, 0)
-    else if (entry.x() < entry.y())
-        if (invdir.y() < 0)
+    else if (near.x() < near.y())
+        if (ray_dir.y() < 0)
             m.Vec2.new(0, 1)
         else
             m.Vec2.new(0, -1)
     else
+        // If near.x and far.y are equal, ray intersects target diagonally.
+        // This case is still considered a hit. However, return normal (0,0) to
+        // make the resolution algorithm not change the velocity.
         m.Vec2.zero();
 
     const hit = entry_time >= 0 and entry_time < 1;
@@ -135,7 +147,7 @@ pub fn rayToAabb(ray_origin: m.Vec2, ray_dir: m.Vec2, target: Aabb) CollisionRes
 
 pub fn aabbToAabb(origin: Aabb, target: Aabb, velocity: m.Vec2) CollisionResult {
     if (velocity.eql(m.Vec2.zero())) {
-        return CollisionResult.noHit();
+        return CollisionResult.miss();
     }
     const origin_half_size = origin.size.scale(0.5);
     const expanded_target = Aabb.new(
