@@ -162,12 +162,12 @@ pub fn aabbToAabb(origin: Aabb, target: Aabb, velocity: m.Vec2) CollisionResult 
     return rayToAabb(ray_origin, velocity, expanded_target);
 }
 
+/// Resolve collision.
 pub fn resolveCollision(result: CollisionResult, velocity: m.Vec2) m.Vec2 {
-    const velocity_abs = m.Vec2.new(@abs(velocity.x()), @abs(velocity.y()));
-    return velocity.add(velocity_abs.mul(result.normal).scale(result.remaining_time));
-    // FIXME: Use dot product for a more mathematically pure implementation.
-    // const dotprod = velocity.dot(result.normal);
-    // return velocity.sub(result.normal.scale(dotprod).scale(result.remaining_time));
+    // Make sure function is only called for actual hits.
+    std.debug.assert(result.hit);
+    const dotprod = velocity.dot(result.normal);
+    return velocity.sub(result.normal.scale(dotprod).scale(result.remaining_time));
 }
 
 test "resolveCollision: push velocity back to contact point" {
