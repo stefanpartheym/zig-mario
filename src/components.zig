@@ -40,23 +40,10 @@ pub const Position = struct {
 pub const Velocity = struct {
     const Self = @This();
 
-    x: f32,
-    y: f32,
+    value: m.Vec2,
 
     pub fn new() Self {
-        return Self{
-            .x = 0,
-            .y = 0,
-        };
-    }
-
-    pub fn toVec2(self: *const Self) m.Vec2 {
-        return m.Vec2.new(self.x, self.y);
-    }
-
-    pub fn set(self: *Self, value: m.Vec2) void {
-        self.x = value.x();
-        self.y = value.y();
+        return Self{ .value = m.Vec2.zero() };
     }
 };
 

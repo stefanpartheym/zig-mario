@@ -90,7 +90,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     var vel = reg.get(comp.Velocity, player_entity);
 
     // Reset velocity at the beginning of each frame.
-    vel.x = 0;
+    vel.value.xMut().* = 0;
 
     var direction = if (rl.isKeyDown(rl.KeyboardKey.key_h) or rl.isKeyDown(rl.KeyboardKey.key_left))
         m.Vec2.left()
@@ -109,7 +109,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     }
 
     const scaled_speed = speed.toVec2().mul(direction).scale(delta_time);
-    vel.set(vel.toVec2().add(scaled_speed));
+    vel.value = vel.value.add(scaled_speed);
 }
 
 fn reset(
@@ -212,9 +212,9 @@ fn handleCollision(reg: *entt.Registry) void {
             const collider_pos = collider_view.get(comp.Position, collider);
             const collider_shape = collider_view.get(comp.Shape, collider);
             const target = tc.Aabb.new(collider_pos.toVec2(), collider_shape.getSize());
-            const result = tc.aabbToAabb(origin, target, vel.toVec2());
+            const result = tc.aabbToAabb(origin, target, vel.value);
             if (result.hit) {
-                vel.set(tc.resolveCollision(result, vel.toVec2()));
+                vel.value = tc.resolveCollision(result, vel.value);
             }
         }
     }
@@ -226,7 +226,7 @@ fn applyGravity(reg: *entt.Registry, force: f32, delta_time: f32) void {
     while (it.next()) |entity| {
         const gravity = view.get(comp.Gravity, entity);
         var vel = view.get(comp.Velocity, entity);
-        vel.y += force * 1.5 * delta_time * gravity.factor;
+        vel.value = vel.value.add(m.Vec2.new(0, force * 1.5 * delta_time * gravity.factor));
     }
 }
 
@@ -236,7 +236,7 @@ fn updatePosition(reg: *entt.Registry) void {
     while (it.next()) |entity| {
         const vel = view.getConst(comp.Velocity, entity);
         var pos = view.get(comp.Position, entity);
-        pos.x += vel.x;
-        pos.y += vel.y;
+        pos.x += vel.value.x();
+        pos.y += vel.value.y();
     }
 }
