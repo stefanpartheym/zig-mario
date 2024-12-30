@@ -1,6 +1,5 @@
 const std = @import("std");
 const rl = @import("raylib");
-const zb = @import("zbox2d");
 const entt = @import("entt");
 const m = @import("math/mod.zig");
 const paa = @import("paa.zig");
@@ -11,7 +10,7 @@ const tiled = @import("tiled.zig");
 const entities = @import("entities.zig");
 const comp = @import("components.zig");
 const systems = @import("systems.zig");
-const tc = @import("tinycollision.zig");
+const coll = @import("collision.zig");
 
 pub fn main() !void {
     var alloc = paa.init();
@@ -201,7 +200,10 @@ fn reset(
 //------------------------------------------------------------------------------
 
 fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
-    const BroadphaseCollision = struct { aabb: tc.Aabb, result: tc.CollisionResult };
+    const BroadphaseCollision = struct {
+        aabb: coll.Aabb,
+        result: coll.CollisionResult,
+    };
 
     var view = reg.view(.{ comp.Position, comp.Shape, comp.Velocity, comp.Collision }, .{});
     var it = view.entityIterator();
@@ -209,8 +211,8 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
         const pos = view.get(comp.Position, entity);
         const shape = view.get(comp.Shape, entity);
         var vel = view.get(comp.Velocity, entity);
-        const aabb = tc.Aabb.new(pos.toVec2(), shape.getSize());
-        const broadphase_aabb = tc.Aabb.fromMovement(pos.toVec2(), shape.getSize(), vel.value);
+        const aabb = coll.Aabb.new(pos.toVec2(), shape.getSize());
+        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), shape.getSize(), vel.value);
 
         var collisions = std.ArrayList(BroadphaseCollision).init(allocator);
         defer collisions.deinit();
@@ -222,9 +224,9 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
             if (collider == entity) continue;
             const collider_pos = collider_view.get(comp.Position, collider);
             const collider_size = collider_view.get(comp.Shape, collider);
-            const collider_aabb = tc.Aabb.new(collider_pos.toVec2(), collider_size.getSize());
+            const collider_aabb = coll.Aabb.new(collider_pos.toVec2(), collider_size.getSize());
             if (broadphase_aabb.intersects(collider_aabb)) {
-                const result = tc.aabbToAabb(aabb, collider_aabb, vel.value);
+                const result = coll.aabbToAabb(aabb, collider_aabb, vel.value);
                 if (result.hit) {
                     try collisions.append(.{
                         .aabb = collider_aabb,
@@ -245,9 +247,9 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
 
         // Resolve collisions in order.
         for (collisions.items) |collision| {
-            const result = tc.aabbToAabb(aabb, collision.aabb, vel.value);
+            const result = coll.aabbToAabb(aabb, collision.aabb, vel.value);
             if (result.hit) {
-                vel.value = tc.resolveCollision(result, vel.value);
+                vel.value = coll.resolveCollision(result, vel.value);
             }
         }
     }

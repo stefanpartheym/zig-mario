@@ -39,6 +39,10 @@ pub const Aabb = struct {
             self.pos.y() < other.pos.y() + other.size.y() and
             self.pos.y() + self.size.y() > other.pos.y();
     }
+
+    pub fn eql(self: *const Self, other: Aabb) bool {
+        return self.pos.eql(other.pos) and self.size.eql(other.size);
+    }
 };
 
 pub const CollisionResult = struct {
@@ -62,7 +66,13 @@ pub const CollisionResult = struct {
         return Self.new(false, m.Vec2.zero(), m.Vec2.zero(), 1, 0);
     }
 
-    pub fn new(hit: bool, normal: m.Vec2, contact: m.Vec2, time: f32, remaining_time: f32) Self {
+    pub fn new(
+        hit: bool,
+        normal: m.Vec2,
+        contact: m.Vec2,
+        time: f32,
+        remaining_time: f32,
+    ) Self {
         return Self{
             .hit = hit,
             .normal = normal,
@@ -150,15 +160,19 @@ pub fn rayToAabb(
 
 /// Check for collision between two `Aabb` objects.
 pub fn aabbToAabb(origin: Aabb, target: Aabb, velocity: m.Vec2) CollisionResult {
+    // Do not check collision if velocity is zero.
     if (velocity.eql(m.Vec2.zero())) {
         return CollisionResult.miss();
     }
+    // Expand target by half the size of the origin.
     const origin_half_size = origin.size.scale(0.5);
     const expanded_target = Aabb.new(
         target.pos.sub(origin_half_size),
         target.size.add(origin.size),
     );
+    // Get ray origin by the origins center point.
     const ray_origin = origin.pos.add(origin_half_size);
+    // Perform collision detection.
     return rayToAabb(ray_origin, velocity, expanded_target);
 }
 
@@ -169,6 +183,10 @@ pub fn resolveCollision(result: CollisionResult, velocity: m.Vec2) m.Vec2 {
     const dotprod = velocity.dot(result.normal);
     return velocity.sub(result.normal.scale(dotprod).scale(result.remaining_time));
 }
+
+//------------------------------------------------------------------------------
+// Tests
+//------------------------------------------------------------------------------
 
 test "resolveCollision: push velocity back to contact point" {
     const velocity = m.Vec2.new(1, 0);

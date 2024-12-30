@@ -1,3 +1,3 @@
 test {
-    _ = @import("tinycollision.zig");
+    _ = @import("collision.zig");
 }
