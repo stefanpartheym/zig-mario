@@ -1,8 +1,7 @@
 const rl = @import("raylib");
 const entt = @import("entt");
-const zb = @import("zbox2d");
 const comp = @import("components.zig");
-const Rect = @import("math/mod.zig").Rect;
+const m = @import("math/mod.zig");
 
 //-----------------------------------------------------------------------------
 // Misc
@@ -118,7 +117,7 @@ fn drawEntity(pos: comp.Position, shape: comp.Shape, visual: comp.Visual) void {
             const frames: f32 = @floatFromInt(visual.animation.playing_animation.animation.frames.len);
             const texture_width = @as(f32, @floatFromInt(visual.animation.texture.width));
             const texture_height = @as(f32, @floatFromInt(visual.animation.texture.height));
-            const source_rect = Rect{
+            const source_rect = m.Rect{
                 .x = texture_width * frame.region.u * texture_width / frames,
                 .y = texture_height * frame.region.v * texture_height / frames,
                 .width = texture_width / frames,
@@ -145,7 +144,7 @@ pub fn drawStub(pos: comp.Position, shape: comp.Shape) void {
 }
 
 /// Draw a sprite.
-pub fn drawSprite(target: Rect, source: Rect, texture: rl.Texture) void {
+pub fn drawSprite(target: m.Rect, source: m.Rect, texture: rl.Texture) void {
     texture.drawPro(
         .{
             .x = source.x,
