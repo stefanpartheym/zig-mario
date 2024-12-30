@@ -56,11 +56,21 @@ pub fn debugDraw(reg: *entt.Registry, color: rl.Color) void {
             pos.x -= shape.getWidth() / 2;
             pos.y -= shape.getHeight() / 2;
         }
+        const shape_aabb = comp.Shape.rectangle(shape.getWidth(), shape.getHeight());
+        // Draw entity AABB outline.
         drawEntity(
             pos,
-            comp.Shape.rectangle(shape.getWidth(), shape.getHeight()),
+            shape_aabb,
             comp.Visual.color(color, true),
         );
+        // If entity is collidable, draw the collision AABB with a slight alpha.
+        if (reg.has(comp.Collision, entity)) {
+            drawEntity(
+                pos,
+                shape_aabb,
+                comp.Visual.color(color.alpha(0.25), false),
+            );
+        }
     }
 }
 
