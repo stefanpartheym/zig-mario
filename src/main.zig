@@ -47,7 +47,8 @@ pub fn main() !void {
         const delta_time = rl.getFrameTime();
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
-        applyGravity(game.reg, 9.81, delta_time);
+        applyGravity(game.reg, 20, delta_time);
+        applyDrag(game.reg, 10, delta_time);
         try handleCollision(game.reg, alloc.allocator());
         updatePosition(game.reg);
         systems.beginFrame(rl.Color.black);
@@ -59,10 +60,6 @@ pub fn main() !void {
         systems.endFrame();
     }
 }
-
-//------------------------------------------------------------------------------
-// App
-//------------------------------------------------------------------------------
 
 fn handleAppInput(game: *Game) void {
     if (rl.windowShouldClose() or
@@ -88,29 +85,25 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     var player = reg.get(comp.Player, player_entity);
     var vel = reg.get(comp.Velocity, player_entity);
 
-    // Reset velocity at the beginning of each frame.
-    vel.value.xMut().* = 0;
+    const scaled_speed = speed.toVec2().scale(delta_time);
 
-    var direction = if (rl.isKeyDown(rl.KeyboardKey.key_h) or rl.isKeyDown(rl.KeyboardKey.key_left))
-        m.Vec2.left()
-    else if (rl.isKeyDown(rl.KeyboardKey.key_l) or rl.isKeyDown(rl.KeyboardKey.key_right))
-        m.Vec2.right()
-    else
-        m.Vec2.zero();
-
-    if (rl.isKeyDown(.key_space)) {
-        if (player.jump_timer.state <= 0.025) {
-            player.jump_timer.update(delta_time);
-            direction.yMut().* = m.Vec2.up().negate().y();
-        }
-    } else if (rl.isKeyUp(.key_space)) {
-        player.jump_timer.reset();
+    if (rl.isKeyDown(.key_h) or rl.isKeyDown(.key_left)) {
+        vel.value.xMut().* += -scaled_speed.x();
+    } else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
+        vel.value.xMut().* += scaled_speed.x();
     }
 
-    const scaled_speed = speed.toVec2().mul(direction).scale(delta_time);
-    vel.value = vel.value.add(scaled_speed);
+    if (rl.isKeyDown(.key_space)) {
+        if (player.jump_timer.state <= 0.04) {
+            player.jump_timer.update(delta_time);
+            vel.value.yMut().* -= scaled_speed.y();
+        }
+    } else if (rl.isKeyUp(.key_space) and vel.value.y() == 0) {
+        player.jump_timer.reset();
+    }
 }
 
+/// Reset game state.
 fn reset(
     game: *Game,
     tilemap: *const tiled.Tilemap,
@@ -187,7 +180,7 @@ fn reset(
         entities.setMovable(
             reg,
             player,
-            comp.Speed.new(300, 300),
+            comp.Speed.new(60, 225),
         );
         reg.add(player, comp.Player.new());
         reg.add(player, comp.Collision.new());
@@ -255,16 +248,31 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
     }
 }
 
+/// Apply gravity to all relevant entities.
 fn applyGravity(reg: *entt.Registry, force: f32, delta_time: f32) void {
     var view = reg.view(.{ comp.Velocity, comp.Gravity }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const gravity = view.get(comp.Gravity, entity);
+        const gravity_amount = force * gravity.factor * delta_time;
         var vel = view.get(comp.Velocity, entity);
-        vel.value = vel.value.add(m.Vec2.new(0, force * 1.5 * delta_time * gravity.factor));
+        vel.value = vel.value.add(m.Vec2.new(0, gravity_amount));
     }
 }
 
+/// Apply horizontal drag to all entities with a velocity component.
+fn applyDrag(reg: *entt.Registry, force: f32, delta_time: f32) void {
+    var view = reg.view(.{comp.Velocity}, .{});
+    var it = view.entityIterator();
+    while (it.next()) |entity| {
+        var vel = view.get(entity);
+        const drag_amount = -force * vel.value.x() * delta_time;
+        vel.value = vel.value.add(m.Vec2.new(drag_amount, 0));
+        if (@abs(vel.value.x()) < 0.01) vel.value.xMut().* = 0;
+    }
+}
+
+/// Update entities position based on their velocity.
 fn updatePosition(reg: *entt.Registry) void {
     var view = reg.view(.{ comp.Position, comp.Velocity }, .{});
     var it = view.entityIterator();
