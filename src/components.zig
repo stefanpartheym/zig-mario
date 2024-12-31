@@ -332,12 +332,13 @@ pub const Cooldown = struct {
 };
 
 //------------------------------------------------------------------------------
-// Game specific components
+// Physics
 //------------------------------------------------------------------------------
 
 pub const Collision = struct {
     const Self = @This();
 
+    /// Collision callback.
     on_collision: ?*const fn (*entt.Registry, entt.Entity, entt.Entity) void = undefined,
 
     pub fn new() Self {
@@ -348,13 +349,21 @@ pub const Collision = struct {
 pub const Gravity = struct {
     const Self = @This();
 
-    /// Factor by which the default gravity force is multiplied.
+    /// Factor which the default gravity force is modulated with.
     factor: f32,
 
     pub fn new() Self {
-        return Self{ .factor = 1 };
+        return Self.fromFactor(1);
+    }
+
+    pub fn fromFactor(factor: f32) Self {
+        return Self{ .factor = factor };
     }
 };
+
+//------------------------------------------------------------------------------
+// Game specific components
+//------------------------------------------------------------------------------
 
 pub const Player = struct {
     const Self = @This();
