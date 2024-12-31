@@ -72,6 +72,10 @@ fn handleAppInput(game: *Game) void {
     if (rl.isKeyPressed(rl.KeyboardKey.key_f1)) {
         game.toggleDebugMode();
     }
+
+    if (rl.isKeyPressed(.key_f2)) {
+        spawnDebugBox(game.reg);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -186,6 +190,23 @@ fn reset(
         reg.add(player, comp.Collision.new());
         reg.add(player, comp.Gravity.new());
     }
+}
+
+/// Spawn a small box at current mouse position for debugging purposes.
+fn spawnDebugBox(reg: *entt.Registry) void {
+    const entity = reg.create();
+    const pos = rl.getMousePosition();
+    entities.setRenderable(
+        reg,
+        entity,
+        comp.Position.new(pos.x, pos.y),
+        comp.Shape.rectangle(25, 25),
+        comp.Visual.stub(),
+        comp.VisualLayer.new(1),
+    );
+    reg.add(entity, comp.Velocity.new());
+    reg.add(entity, comp.Collision.new());
+    reg.add(entity, comp.Gravity.new());
 }
 
 //------------------------------------------------------------------------------
