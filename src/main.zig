@@ -1,9 +1,9 @@
 const std = @import("std");
 const rl = @import("raylib");
 const entt = @import("entt");
-const m = @import("math/mod.zig");
 const paa = @import("paa.zig");
-const rlhelper = @import("rlhelper.zig");
+const m = @import("math/mod.zig");
+const u = @import("utils/mod.zig");
 const application = @import("application.zig");
 const Game = @import("game.zig").Game;
 const tiled = @import("tiled.zig");
@@ -39,24 +39,43 @@ pub fn main() !void {
     var tilemap = try tiled.Tilemap.fromFile(alloc.allocator(), "./assets/map/map.tmj");
     defer tilemap.deinit();
     const tileset = try tilemap.getTileset(1);
-    const tileset_texture = try rlhelper.loadTexture(alloc.allocator(), tileset.image_path);
+    const tileset_texture = try u.rl.loadTexture(alloc.allocator(), tileset.image_path);
+
+    var camera = rl.Camera2D{
+        .target = .{ .x = 0, .y = 0 },
+        .offset = .{ .x = 0, .y = 0 },
+        .rotation = 0,
+        .zoom = app.getDpiFactor().x(),
+    };
 
     reset(&game, &tilemap, tileset, &tileset_texture);
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
+        // Input
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
+
+        // Physics
         applyGravity(game.reg, 20, delta_time);
         applyDrag(game.reg, 10, delta_time);
         try handleCollision(game.reg, alloc.allocator());
         updatePosition(game.reg);
+
+        // Graphics
+        updateCamera(&game, &camera);
         systems.beginFrame(rl.Color.black);
-        systems.draw(game.reg);
-        if (game.debug_mode) {
-            systems.debugDraw(game.reg, rl.Color.yellow);
-            systems.debugDrawFps();
+        // Camera mode
+        {
+            camera.begin();
+            systems.draw(game.reg);
+            if (game.debug_mode) {
+                systems.debugDraw(game.reg, rl.Color.yellow);
+            }
+            camera.end();
         }
+        // Default mode
+        if (game.debug_mode) systems.debugDrawFps();
         systems.endFrame();
     }
 }
@@ -84,7 +103,7 @@ fn handleAppInput(game: *Game) void {
 
 fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const reg = game.reg;
-    const player_entity = game.getPlayer();
+    const player_entity = game.entities.getPlayer();
     const speed = reg.get(comp.Speed, player_entity);
     var player = reg.get(comp.Player, player_entity);
     var vel = reg.get(comp.Velocity, player_entity);
@@ -105,6 +124,28 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     } else if (rl.isKeyUp(.key_space) and vel.value.y() == 0) {
         player.jump_timer.reset();
     }
+}
+
+/// Update the camera to follow the player if a certain threshold is reached.
+fn updateCamera(game: *Game, camera: *rl.Camera2D) void {
+    const threshold = m.Vec2.new(0.5, 0.5);
+    const display = m.Vec2.new(
+        @as(f32, @floatFromInt(rl.getRenderWidth())),
+        @as(f32, @floatFromInt(rl.getRenderHeight())),
+    );
+    const target = game.entities.getPlayerCenter();
+
+    // Update camera offset.
+    const camera_offset = m.Vec2.one().sub(threshold).scale(0.5).mul(display);
+    camera.offset = u.rl.vec2(camera_offset);
+
+    // Update camera target.
+    const world_min = rl.getScreenToWorld2D(u.rl.vec2(m.Vec2.one().sub(threshold).scale(0.5).mul(display)), camera.*);
+    const world_max = rl.getScreenToWorld2D(u.rl.vec2(m.Vec2.one().add(threshold).scale(0.5).mul(display)), camera.*);
+    if (target.x() < world_min.x) camera.target.x = target.x();
+    if (target.y() < world_min.y) camera.target.y = target.y();
+    if (target.x() > world_max.x) camera.target.x = world_min.x + (target.x() - world_max.x);
+    if (target.y() > world_max.y) camera.target.y = world_min.y + (target.y() - world_max.y);
 }
 
 /// Reset game state.
@@ -169,8 +210,8 @@ fn reset(
 
     // Setup new player entity.
     {
-        const player = game.getPlayer();
-        const spawn_pos = m.Vec2.new(50, 50);
+        const player = game.entities.getPlayer();
+        const spawn_pos = m.Vec2.new(300, 300);
         const pos = comp.Position.fromVec2(spawn_pos);
         const shape = comp.Shape.rectangle(40, 60);
         entities.setRenderable(
