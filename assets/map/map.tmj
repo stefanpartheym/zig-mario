@@ -3,6 +3,29 @@
  "infinite":false,
  "layers":[
         {
+         "draworder":"topdown",
+         "id":3,
+         "name":"interactive",
+         "objects":[
+                {
+                 "height":0,
+                 "id":1,
+                 "name":"player_spawn",
+                 "point":true,
+                 "rotation":0,
+                 "type":"spawn",
+                 "visible":true,
+                 "width":0,
+                 "x":160,
+                 "y":416
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
          "data":[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 14, 15, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 91, 93, 94, 0, 0, 0, 0, 0, 0, 45, 25, 49, 0, 0, 0, 0,
@@ -64,8 +87,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":3,
- "nextobjectid":1,
+ "nextlayerid":4,
+ "nextobjectid":2,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.0",

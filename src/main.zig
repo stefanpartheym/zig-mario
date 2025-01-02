@@ -48,7 +48,7 @@ pub fn main() !void {
         .zoom = app.getDpiFactor().x(),
     };
 
-    reset(&game, &tilemap, tileset, &tileset_texture);
+    try reset(&game, &tilemap, tileset, &tileset_texture);
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
@@ -154,7 +154,7 @@ fn reset(
     tilemap: *const tiled.Tilemap,
     tileset: *const tiled.Tileset,
     tileset_texture: *const rl.Texture,
-) void {
+) !void {
     const reg = game.reg;
 
     // Clear entity references.
@@ -169,10 +169,10 @@ fn reset(
     // Setup tilemap.
     {
         for (tilemap.data.layers) |layer| {
-            if (!layer.visible) continue;
+            if (!layer.visible or layer.type != .tilelayer) continue;
             var x: usize = 0;
             var y: usize = 0;
-            for (layer.data) |tile_id| {
+            for (layer.tiles) |tile_id| {
                 // Skip empty tiles.
                 if (tile_id != 0) {
                     const entity = reg.create();
@@ -210,8 +210,12 @@ fn reset(
 
     // Setup new player entity.
     {
+        const player_spawn_object = try tilemap.data.getObject("player_spawn");
+        const spawn_pos = m.Vec2.new(
+            @floatFromInt(player_spawn_object.x),
+            @floatFromInt(player_spawn_object.y),
+        );
         const player = game.entities.getPlayer();
-        const spawn_pos = m.Vec2.new(300, 300);
         const pos = comp.Position.fromVec2(spawn_pos);
         const shape = comp.Shape.rectangle(40, 60);
         entities.setRenderable(
