@@ -4,6 +4,7 @@ const entt = @import("entt");
 const paa = @import("paa.zig");
 const m = @import("math/mod.zig");
 const u = @import("utils/mod.zig");
+const graphics = @import("graphics/mod.zig");
 const application = @import("application.zig");
 const Game = @import("game.zig").Game;
 const tiled = @import("tiled.zig");
@@ -40,6 +41,11 @@ pub fn main() !void {
     defer tilemap.deinit();
     const tileset = try tilemap.getTileset(1);
     const tileset_texture = try u.rl.loadTexture(alloc.allocator(), tileset.image_path);
+    defer tileset_texture.unload();
+    const player_texture = try u.rl.loadTexture(alloc.allocator(), "./assets/player.atlas.png");
+    defer player_texture.unload();
+    var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 4, 4, "player");
+    defer player_atlas.deinit();
 
     var camera = rl.Camera2D{
         .target = .{ .x = 0, .y = 0 },
@@ -48,7 +54,7 @@ pub fn main() !void {
         .zoom = app.getDpiFactor().x(),
     };
 
-    try reset(&game, &tilemap, tileset, &tileset_texture);
+    try reset(&game, &tilemap, tileset, &tileset_texture, &player_texture, &player_atlas);
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
@@ -64,7 +70,8 @@ pub fn main() !void {
 
         // Graphics
         updateCamera(&game, &camera);
-        systems.beginFrame(rl.Color.black);
+        systems.updateAnimations(game.reg);
+        systems.beginFrame(rl.getColor(0x202640ff));
         // Camera mode
         {
             camera.begin();
@@ -104,17 +111,34 @@ fn handleAppInput(game: *Game) void {
 fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const reg = game.reg;
     const player_entity = game.entities.getPlayer();
+    const collision = reg.get(comp.Collision, player_entity);
     const speed = reg.get(comp.Speed, player_entity);
     var player = reg.get(comp.Player, player_entity);
     var vel = reg.get(comp.Velocity, player_entity);
+    var visual = reg.get(comp.Visual, player_entity);
 
     const scaled_speed = speed.toVec2().scale(delta_time);
+    const last_animation = visual.animation.definition;
+    var next_animation = comp.Visual.AnimationDefinition{
+        .name = "player0",
+        .speed = 1.5,
+        .flip_x = last_animation.flip_x,
+    };
 
     if (rl.isKeyDown(.key_h) or rl.isKeyDown(.key_left)) {
         vel.value.xMut().* += -scaled_speed.x();
+        next_animation = .{ .name = "player1", .speed = 8, .flip_x = true };
     } else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
         vel.value.xMut().* += scaled_speed.x();
+        next_animation = .{ .name = "player1", .speed = 8, .flip_x = false };
     }
+
+    if (!collision.grounded) {
+        next_animation = .{ .name = "player2", .speed = 3, .flip_x = next_animation.flip_x };
+    }
+
+    // Change animation.
+    visual.animation.changeAnimation(next_animation);
 
     if (rl.isKeyDown(.key_space)) {
         if (player.jump_timer.state <= 0.04) {
@@ -128,7 +152,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
 
 /// Update the camera to follow the player if a certain threshold is reached.
 fn updateCamera(game: *Game, camera: *rl.Camera2D) void {
-    const threshold = m.Vec2.new(0.5, 0.5);
+    const threshold = m.Vec2.new(0.3, 0.3);
     const display = m.Vec2.new(
         @as(f32, @floatFromInt(rl.getRenderWidth())),
         @as(f32, @floatFromInt(rl.getRenderHeight())),
@@ -154,6 +178,8 @@ fn reset(
     tilemap: *const tiled.Tilemap,
     tileset: *const tiled.Tileset,
     tileset_texture: *const rl.Texture,
+    player_texture: *const rl.Texture,
+    player_atlas: *graphics.sprites.AnimatedSpriteSheet,
 ) !void {
     const reg = game.reg;
 
@@ -194,7 +220,7 @@ fn reset(
                     );
                     // Add collision for first layer only.
                     if (layer.id < 2) {
-                        reg.add(entity, comp.Collision.new());
+                        reg.add(entity, comp.Collision.new(shape.getSize()));
                     }
                 }
 
@@ -217,13 +243,13 @@ fn reset(
         );
         const player = game.entities.getPlayer();
         const pos = comp.Position.fromVec2(spawn_pos);
-        const shape = comp.Shape.rectangle(40, 60);
+        const shape = comp.Shape.rectangle(39, 48);
         entities.setRenderable(
             reg,
             player,
             pos,
             shape,
-            comp.Visual.stub(),
+            comp.Visual.animation(player_texture, player_atlas, .{ .name = "player0", .speed = 1.5 }),
             comp.VisualLayer.new(1),
         );
         entities.setMovable(
@@ -232,7 +258,7 @@ fn reset(
             comp.Speed.new(60, 225),
         );
         reg.add(player, comp.Player.new());
-        reg.add(player, comp.Collision.new());
+        reg.add(player, comp.Collision.new(shape.getSize()));
         reg.add(player, comp.Gravity.new());
     }
 }
@@ -241,16 +267,17 @@ fn reset(
 fn spawnDebugBox(reg: *entt.Registry) void {
     const entity = reg.create();
     const pos = rl.getMousePosition();
+    const shape = comp.Shape.rectangle(25, 25);
     entities.setRenderable(
         reg,
         entity,
         comp.Position.new(pos.x, pos.y),
-        comp.Shape.rectangle(25, 25),
+        shape,
         comp.Visual.stub(),
         comp.VisualLayer.new(1),
     );
     reg.add(entity, comp.Velocity.new());
-    reg.add(entity, comp.Collision.new());
+    reg.add(entity, comp.Collision.new(shape.getSize()));
     reg.add(entity, comp.Gravity.new());
 }
 
@@ -264,26 +291,29 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
         result: coll.CollisionResult,
     };
 
-    var view = reg.view(.{ comp.Position, comp.Shape, comp.Velocity, comp.Collision }, .{});
+    var view = reg.view(.{ comp.Position, comp.Velocity, comp.Collision }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const pos = view.get(comp.Position, entity);
-        const shape = view.get(comp.Shape, entity);
+        var collision = view.get(comp.Collision, entity);
         var vel = view.get(comp.Velocity, entity);
-        const aabb = coll.Aabb.new(pos.toVec2(), shape.getSize());
-        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), shape.getSize(), vel.value);
+        const aabb = coll.Aabb.new(pos.toVec2(), collision.aabb_size);
+        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision.aabb_size, vel.value);
+
+        // Reset grounded flag.
+        collision.grounded = false;
 
         var collisions = std.ArrayList(BroadphaseCollision).init(allocator);
         defer collisions.deinit();
 
         // Perform broadphase collision detection.
-        var collider_view = reg.view(.{ comp.Position, comp.Shape, comp.Collision }, .{});
+        var collider_view = reg.view(.{ comp.Position, comp.Collision }, .{});
         var collider_it = collider_view.entityIterator();
         while (collider_it.next()) |collider| {
             if (collider == entity) continue;
             const collider_pos = collider_view.get(comp.Position, collider);
-            const collider_size = collider_view.get(comp.Shape, collider);
-            const collider_aabb = coll.Aabb.new(collider_pos.toVec2(), collider_size.getSize());
+            const collider_size = collider_view.get(comp.Collision, collider).aabb_size;
+            const collider_aabb = coll.Aabb.new(collider_pos.toVec2(), collider_size);
             if (broadphase_aabb.intersects(collider_aabb)) {
                 const result = coll.aabbToAabb(aabb, collider_aabb, vel.value);
                 if (result.hit) {
@@ -305,10 +335,15 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
         std.sort.insertion(BroadphaseCollision, collisions.items, {}, SortContext.sort);
 
         // Resolve collisions in order.
-        for (collisions.items) |collision| {
-            const result = coll.aabbToAabb(aabb, collision.aabb, vel.value);
+        for (collisions.items) |broadphase_result| {
+            const result = coll.aabbToAabb(aabb, broadphase_result.aabb, vel.value);
             if (result.hit) {
                 vel.value = coll.resolveCollision(result, vel.value);
+                // Set grounded flag, if entity collided with normal facing
+                // upwards.
+                if (result.normal.y() < 0) {
+                    collision.grounded = true;
+                }
             }
         }
     }

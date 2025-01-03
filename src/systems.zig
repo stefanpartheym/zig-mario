@@ -56,18 +56,17 @@ pub fn debugDraw(reg: *entt.Registry, color: rl.Color) void {
             pos.x -= shape.getWidth() / 2;
             pos.y -= shape.getHeight() / 2;
         }
-        const shape_aabb = comp.Shape.rectangle(shape.getWidth(), shape.getHeight());
         // Draw entity AABB outline.
         drawEntity(
             pos,
-            shape_aabb,
+            comp.Shape.rectangle(shape.getWidth(), shape.getHeight()),
             comp.Visual.color(color, true),
         );
         // If entity is collidable, draw the collision AABB with a slight alpha.
-        if (reg.has(comp.Collision, entity)) {
+        if (reg.tryGet(comp.Collision, entity)) |collision| {
             drawEntity(
                 pos,
-                shape_aabb,
+                comp.Shape.rectangle(collision.aabb_size.x(), collision.aabb_size.y()),
                 comp.Visual.color(color.alpha(0.25), false),
             );
         }
@@ -124,14 +123,15 @@ fn drawEntity(pos: comp.Position, shape: comp.Shape, visual: comp.Visual) void {
         .animation => {
             var anim = visual.animation.playing_animation;
             const frame = anim.getCurrentFrame();
-            const frames: f32 = @floatFromInt(visual.animation.playing_animation.animation.frames.len);
             const texture_width = @as(f32, @floatFromInt(visual.animation.texture.width));
             const texture_height = @as(f32, @floatFromInt(visual.animation.texture.height));
+            const flip_sign_x: f32 = if (visual.animation.definition.flip_x) -1 else 1;
+            const flip_sign_y: f32 = if (visual.animation.definition.flip_y) -1 else 1;
             const source_rect = m.Rect{
-                .x = texture_width * frame.region.u * texture_width / frames,
-                .y = texture_height * frame.region.v * texture_height / frames,
-                .width = texture_width / frames,
-                .height = texture_height,
+                .x = texture_width * frame.region.u,
+                .y = texture_height * frame.region.v,
+                .width = texture_width * (frame.region.u_2 - frame.region.u) * flip_sign_x,
+                .height = texture_height * (frame.region.v_2 - frame.region.v) * flip_sign_y,
             };
             drawSprite(
                 .{

@@ -1,3 +1,4 @@
+const std = @import("std");
 const rl = @import("raylib");
 const entt = @import("entt");
 
@@ -217,6 +218,21 @@ pub const VisualLayer = struct {
 
 pub const Visual = union(VisualType) {
     const Self = @This();
+    pub const AnimationDefinition = struct {
+        name: []const u8,
+        loop: bool = true,
+        speed: f32 = 1,
+        flip_x: bool = false,
+        flip_y: bool = false,
+
+        pub fn eql(self: @This(), other: @This()) bool {
+            return std.mem.eql(u8, self.name, other.name) and
+                self.loop == other.loop and
+                self.speed == other.speed and
+                self.flip_x == other.flip_x and
+                self.flip_y == other.flip_y;
+        }
+    };
 
     stub: struct {
         /// In order for the ECS to correctly handle the component, it needs at
@@ -234,7 +250,23 @@ pub const Visual = union(VisualType) {
     },
     animation: struct {
         texture: *const rl.Texture,
+        animation: *sprites.AnimatedSpriteSheet,
+        definition: AnimationDefinition,
         playing_animation: sprites.PlayingAnimation,
+
+        pub fn changeAnimation(
+            self: *@This(),
+            definition: AnimationDefinition,
+        ) void {
+            if (self.definition.eql(definition)) {
+                return;
+            }
+            self.definition = definition;
+            self.playing_animation = self.animation.playAnimation(definition.name).?;
+            self.playing_animation.loop(definition.loop);
+            self.playing_animation.setSpeed(definition.speed);
+            self.playing_animation.play();
+        }
     },
 
     /// Creates a stub Visual component.
@@ -268,11 +300,18 @@ pub const Visual = union(VisualType) {
 
     pub fn animation(
         texture: *const rl.Texture,
-        playing_animation: sprites.PlayingAnimation,
+        anim: *sprites.AnimatedSpriteSheet,
+        definition: AnimationDefinition,
     ) Self {
+        var playing_animation = anim.playAnimation(definition.name).?;
+        playing_animation.setSpeed(definition.speed);
+        playing_animation.loop(definition.loop);
+        playing_animation.play();
         return Self{
             .animation = .{
                 .texture = texture,
+                .animation = anim,
+                .definition = definition,
                 .playing_animation = playing_animation,
             },
         };
@@ -338,11 +377,15 @@ pub const Cooldown = struct {
 pub const Collision = struct {
     const Self = @This();
 
+    /// AABB
+    aabb_size: m.Vec2,
     /// Collision callback.
     on_collision: ?*const fn (*entt.Registry, entt.Entity, entt.Entity) void = undefined,
+    /// Flag indicating if the entity is currently on the ground.
+    grounded: bool,
 
-    pub fn new() Self {
-        return Self{ .on_collision = null };
+    pub fn new(aabb_size: m.Vec2) Self {
+        return Self{ .aabb_size = aabb_size, .on_collision = null, .grounded = false };
     }
 };
 

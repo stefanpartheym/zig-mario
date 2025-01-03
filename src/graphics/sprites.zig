@@ -93,7 +93,7 @@ pub const AnimatedSpriteSheet = struct {
     }
 
     /// Play the animation under the given animation name
-    pub fn playAnimation(self: *AnimatedSpriteSheet, animation_name: [:0]const u8) ?PlayingAnimation {
+    pub fn playAnimation(self: *AnimatedSpriteSheet, animation_name: []const u8) ?PlayingAnimation {
         const entry = self.getAnimation(animation_name);
         if (entry == null)
             return null;
@@ -102,12 +102,12 @@ pub const AnimatedSpriteSheet = struct {
     }
 
     // Get the animation under the given animation name
-    pub fn getAnimation(self: *AnimatedSpriteSheet, animation_name: [:0]const u8) ?SpriteAnimation {
+    pub fn getAnimation(self: *AnimatedSpriteSheet, animation_name: []const u8) ?SpriteAnimation {
         return self.entries.get(animation_name);
     }
 
     /// Get the first sprite under the given name
-    pub fn getSprite(self: *AnimatedSpriteSheet, name: [:0]const u8) ?AnimationFrame {
+    pub fn getSprite(self: *AnimatedSpriteSheet, name: []const u8) ?AnimationFrame {
         const entry = self.entries.get(name);
         if (entry == null)
             return null;
