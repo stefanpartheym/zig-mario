@@ -8,7 +8,7 @@ I'm working on this game as part of [The 20 Games Challange](https://20_games_ch
 
 _source: [The 20 Games Challange #6 (Super Mario)](https://20_games_challenge.gitlab.io/challenge/#6)_
 
-- [ ] Create a 2D character controller. Mario should be able to walk, run, and jump.
+- [x] Create a 2D character controller. Mario should be able to walk, run, and jump.
 - [ ] Create a single level. You can make world 1-1, or design your own level. The level should be made up of textured tiles. There will also be some special elements:
   - [ ] Add “question mark” boxes. These will contain coins or power ups.
   - [ ] Add warp pipes. Mario should be able to enter these by pressing the “down” button. He will exit a pipe somewhere else on the map.
@@ -40,7 +40,7 @@ zig build -Dtarget=wasm32-emscripten
 | ------------------ | ---------------------------- |
 | `H`, `Arrow Left`  | Move left                    |
 | `L`, `Arrow Right` | Move right                   |
-| `Space`            | (_TODO_) Shoot               |
+| `Space`            | Jump                         |
 | `Enter`            | (_TODO_) Start/pause/resume  |
 | `F1`               | Toggle debug mode            |
 | `F2`               | (_TODO_) Toggle sounds/music |
