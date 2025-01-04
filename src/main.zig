@@ -63,10 +63,11 @@ pub fn main() !void {
         handlePlayerInput(&game, delta_time);
 
         // Physics
-        applyGravity(game.reg, 20, delta_time);
-        applyDrag(game.reg, 10, delta_time);
+        applyGravity(game.reg, 980 * delta_time);
+        applyDrag(game.reg, 10 * delta_time);
         try handleCollision(game.reg, alloc.allocator());
-        updatePosition(game.reg);
+        clampVelocity(game.reg);
+        updatePosition(game.reg, delta_time);
 
         // Graphics
         updateCamera(&game, &camera);
@@ -113,41 +114,52 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const player_entity = game.entities.getPlayer();
     const collision = reg.get(comp.Collision, player_entity);
     const speed = reg.get(comp.Speed, player_entity);
-    var player = reg.get(comp.Player, player_entity);
     var vel = reg.get(comp.Velocity, player_entity);
     var visual = reg.get(comp.Visual, player_entity);
 
-    const scaled_speed = speed.toVec2().scale(delta_time);
     const last_animation = visual.animation.definition;
     var next_animation = comp.Visual.AnimationDefinition{
         .name = "player0",
         .speed = 1.5,
+        // Inherit flip flag from last animation.
         .flip_x = last_animation.flip_x,
     };
 
+    // Use appropriate speed based on whether the player is on the ground or in
+    // the air.
+    const speed_value = if (collision.grounded)
+        speed.default
+    else
+        speed.airborne orelse speed.default;
+
+    // Move left.
     if (rl.isKeyDown(.key_h) or rl.isKeyDown(.key_left)) {
-        vel.value.xMut().* += -scaled_speed.x();
-        next_animation = .{ .name = "player1", .speed = 8, .flip_x = true };
-    } else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
-        vel.value.xMut().* += scaled_speed.x();
-        next_animation = .{ .name = "player1", .speed = 8, .flip_x = false };
+        vel.value.xMut().* += -speed_value.x() * delta_time;
+        next_animation = .{ .name = "player2", .speed = 8, .flip_x = true };
+    }
+    // Move right.
+    else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
+        vel.value.xMut().* += speed_value.x() * delta_time;
+        next_animation = .{ .name = "player2", .speed = 8, .flip_x = false };
     }
 
+    // Jump.
+    if (rl.isKeyPressed(.key_space) and vel.value.y() == 0) {
+        vel.value.yMut().* = -speed.default.y();
+    }
+
+    // Set jump animation if player is in the air.
     if (!collision.grounded) {
-        next_animation = .{ .name = "player2", .speed = 3, .flip_x = next_animation.flip_x };
+        next_animation = .{
+            .name = "player2",
+            .speed = 0,
+            // Inherit flip flag from current movement.
+            .flip_x = next_animation.flip_x,
+        };
     }
 
     // Change animation.
     visual.animation.changeAnimation(next_animation);
-
-    if (rl.isKeyDown(.key_space)) {
-        if (player.jump_timer.state <= 0.04) {
-            player.jump_timer.update(delta_time);
-            vel.value.yMut().* -= scaled_speed.y();
-        }
-    } else if (rl.isKeyUp(.key_space) and vel.value.y() == 0) {
-        player.jump_timer.reset();
-    }
 }
 
 /// Update the camera to follow the player if a certain threshold is reached.
@@ -255,7 +267,11 @@ fn reset(
         entities.setMovable(
             reg,
             player,
-            comp.Speed.new(60, 225),
+            comp.Speed{
+                .default = m.Vec2.new(3000, 600),
+                .airborne = m.Vec2.new(300, 0),
+            },
+            comp.Velocity.default(),
         );
         reg.add(player, comp.Player.new());
         reg.add(player, comp.Collision.new(shape.getSize()));
@@ -276,7 +292,7 @@ fn spawnDebugBox(reg: *entt.Registry) void {
         comp.Visual.stub(),
         comp.VisualLayer.new(1),
     );
-    reg.add(entity, comp.Velocity.new());
+    reg.add(entity, comp.Velocity.default());
     reg.add(entity, comp.Collision.new(shape.getSize()));
     reg.add(entity, comp.Gravity.new());
 }
@@ -291,14 +307,17 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
         result: coll.CollisionResult,
     };
 
+    const delta_time = rl.getFrameTime();
+
     var view = reg.view(.{ comp.Position, comp.Velocity, comp.Collision }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const pos = view.get(comp.Position, entity);
         var collision = view.get(comp.Collision, entity);
         var vel = view.get(comp.Velocity, entity);
+        const vel_scaled = vel.value.scale(delta_time);
         const aabb = coll.Aabb.new(pos.toVec2(), collision.aabb_size);
-        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision.aabb_size, vel.value);
+        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision.aabb_size, vel_scaled);
 
         // Reset grounded flag.
         collision.grounded = false;
@@ -315,7 +334,7 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
             const collider_size = collider_view.get(comp.Collision, collider).aabb_size;
             const collider_aabb = coll.Aabb.new(collider_pos.toVec2(), collider_size);
             if (broadphase_aabb.intersects(collider_aabb)) {
-                const result = coll.aabbToAabb(aabb, collider_aabb, vel.value);
+                const result = coll.aabbToAabb(aabb, collider_aabb, vel_scaled);
                 if (result.hit) {
                     try collisions.append(.{
                         .aabb = collider_aabb,
@@ -336,7 +355,7 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
 
         // Resolve collisions in order.
         for (collisions.items) |broadphase_result| {
-            const result = coll.aabbToAabb(aabb, broadphase_result.aabb, vel.value);
+            const result = coll.aabbToAabb(aabb, broadphase_result.aabb, vel.value.scale(delta_time));
             if (result.hit) {
                 vel.value = coll.resolveCollision(result, vel.value);
                 // Set grounded flag, if entity collided with normal facing
@@ -350,37 +369,56 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
 }
 
 /// Apply gravity to all relevant entities.
-fn applyGravity(reg: *entt.Registry, force: f32, delta_time: f32) void {
+fn applyGravity(reg: *entt.Registry, force: f32) void {
     var view = reg.view(.{ comp.Velocity, comp.Gravity }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const gravity = view.get(comp.Gravity, entity);
-        const gravity_amount = force * gravity.factor * delta_time;
+        const gravity_amount = force * gravity.factor;
         var vel = view.get(comp.Velocity, entity);
-        vel.value = vel.value.add(m.Vec2.new(0, gravity_amount));
+        vel.value.yMut().* += gravity_amount;
     }
 }
 
-/// Apply horizontal drag to all entities with a velocity component.
-fn applyDrag(reg: *entt.Registry, force: f32, delta_time: f32) void {
+/// Apply horizontal drag to all currently grounded entities.
+fn applyDrag(reg: *entt.Registry, force: f32) void {
+    var view = reg.view(.{ comp.Velocity, comp.Collision }, .{});
+    var it = view.entityIterator();
+    while (it.next()) |entity| {
+        const collision = view.get(comp.Collision, entity);
+        if (!collision.grounded) continue;
+        var vel = view.get(comp.Velocity, entity);
+        const drag_amount = -force * vel.value.x();
+        vel.value.xMut().* += drag_amount;
+        if (@abs(vel.value.x()) < 1) vel.value.xMut().* = 0;
+    }
+}
+
+/// Clamp to terminal velocity.
+fn clampVelocity(reg: *entt.Registry) void {
     var view = reg.view(.{comp.Velocity}, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
-        var vel = view.get(entity);
-        const drag_amount = -force * vel.value.x() * delta_time;
-        vel.value = vel.value.add(m.Vec2.new(drag_amount, 0));
-        if (@abs(vel.value.x()) < 0.01) vel.value.xMut().* = 0;
+        var vel: *comp.Velocity = view.get(entity);
+        const lower = vel.terminal.scale(-1);
+        const upper = vel.terminal;
+        const vel_clamped = m.Vec2.new(
+            std.math.clamp(vel.value.x(), lower.x(), upper.x()),
+            std.math.clamp(vel.value.y(), lower.y(), upper.y()),
+        );
+        vel.value = vel_clamped;
     }
 }
 
 /// Update entities position based on their velocity.
-fn updatePosition(reg: *entt.Registry) void {
+fn updatePosition(reg: *entt.Registry, delta_time: f32) void {
     var view = reg.view(.{ comp.Position, comp.Velocity }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const vel = view.getConst(comp.Velocity, entity);
+        const vel_scaled = vel.value.scale(delta_time);
         var pos = view.get(comp.Position, entity);
-        pos.x += vel.value.x();
-        pos.y += vel.value.y();
+        pos.x += vel_scaled.x();
+        pos.y += vel_scaled.y();
     }
 }

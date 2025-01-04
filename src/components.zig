@@ -41,30 +41,27 @@ pub const Position = struct {
 pub const Velocity = struct {
     const Self = @This();
 
+    /// Current velocity.
     value: m.Vec2,
+    /// Maximum velocity per frame an entity can reach.
+    terminal: m.Vec2,
 
-    pub fn new() Self {
-        return Self{ .value = m.Vec2.zero() };
+    pub fn new(terminal: m.Vec2) Self {
+        return Self{ .value = m.Vec2.zero(), .terminal = terminal };
+    }
+
+    pub fn default() Self {
+        return Self.new(m.Vec2.new(300, 1000));
     }
 };
 
 pub const Speed = struct {
-    const Self = @This();
+    /// Default speed.
+    /// Used when entity is grounded or if no `airborne` speed is defined.
+    default: m.Vec2,
 
-    x: f32,
-    y: f32,
-
-    pub fn new(x: f32, y: f32) Self {
-        return Self{ .x = x, .y = y };
-    }
-
-    pub fn uniform(value: f32) Self {
-        return Self.new(value, value);
-    }
-
-    pub fn toVec2(self: *const Self) m.Vec2 {
-        return m.Vec2.new(self.x, self.y);
-    }
+    /// Speed to be applied when entity is in the air.
+    airborne: ?m.Vec2,
 };
 
 pub const Direction = enum {
