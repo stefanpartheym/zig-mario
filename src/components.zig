@@ -1,12 +1,12 @@
 const std = @import("std");
 const rl = @import("raylib");
 const entt = @import("entt");
-
 const m = @import("math/mod.zig");
 const sprites = @import("graphics/mod.zig").sprites;
 const Timer = @import("timer.zig").Timer;
 const Rect = m.Rect;
 const Vec2 = m.Vec2;
+const collision = @import("collision.zig");
 
 //------------------------------------------------------------------------------
 // Common components
@@ -373,12 +373,19 @@ pub const Collision = struct {
     const Self = @This();
 
     /// AABB
+    /// TODO: Add property for offset to entitiy's position.
     aabb_size: m.Vec2,
     /// Collision normal.
     /// Will contain the normals the entity collided with in the last frame.
     normal: m.Vec2,
     /// Collision callback.
-    on_collision: ?*const fn (*entt.Registry, entt.Entity, entt.Entity) void = undefined,
+    on_collision: ?*const fn (
+        *entt.Registry,
+        entt.Entity,
+        entt.Entity,
+        collision.CollisionResult,
+        ?*void,
+    ) void,
 
     pub fn new(aabb_size: m.Vec2) Self {
         return Self{
@@ -412,17 +419,16 @@ pub const Gravity = struct {
 // Game specific components
 //------------------------------------------------------------------------------
 
-pub const EnemyType = enum {
-    goomba,
-    koopa,
-};
-
 pub const Enemy = struct {
     const Self = @This();
 
-    type: EnemyType,
+    dead: bool,
 
-    pub fn new(enemy_type: EnemyType) Self {
-        return Self{ .type = enemy_type };
+    pub fn new() Self {
+        return Self{ .dead = false };
+    }
+
+    pub fn kill(self: *Self) void {
+        self.dead = true;
     }
 };

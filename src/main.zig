@@ -74,14 +74,14 @@ pub fn main() !void {
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
 
-        // AI
-        updateEnemies(&game);
-
         // Physics
         applyGravity(game.reg, 980 * delta_time);
-        try handleCollision(alloc.allocator(), game.reg, delta_time);
+        try handleCollision(alloc.allocator(), game.reg, delta_time, @ptrCast(&game));
         clampVelocity(game.reg);
         updatePosition(game.reg, delta_time);
+
+        // AI
+        updateEnemies(&game);
 
         // Graphics
         updateCamera(&game, &camera);
@@ -117,6 +117,10 @@ fn handleAppInput(game: *Game) void {
 
     if (rl.isKeyPressed(.key_r)) {
         reset(game) catch unreachable;
+    }
+
+    if (rl.isKeyPressed(.key_f2)) {
+        spawnEnemy(game);
     }
 }
 
@@ -301,11 +305,50 @@ fn reset(game: *Game) !void {
             comp.Speed{ .value = m.Vec2.new(250, 600) },
             comp.Velocity.default(),
         );
-        reg.add(player, comp.Collision.new(shape.getSize()));
+        const OnCollision = struct {
+            pub fn f(
+                r: *entt.Registry,
+                e: entt.Entity,
+                collider: entt.Entity,
+                result: coll.CollisionResult,
+                g: *Game,
+            ) void {
+                if (r.tryGet(comp.Enemy, collider)) |enemy| {
+                    if (enemy.dead) return;
+                    if (result.normal.y() == 1) {
+                        enemy.kill();
+                        var enemy_vel = r.get(comp.Velocity, collider);
+                        var enemy_collision = r.get(comp.Collision, collider);
+                        var enemy_shape = r.get(comp.Shape, collider);
+                        var enemy_visual = r.get(comp.Visual, collider);
+                        enemy_vel.value = m.Vec2.zero();
+                        enemy_shape.rectangle.height *= 0.5;
+                        enemy_collision.aabb_size = enemy_collision.aabb_size.mul(m.Vec2.new(1, 0.5));
+                        // enemy_pos.y += enemy_shape.rectangle.height;
+                        enemy_visual.animation.changeAnimation(.{
+                            .name = enemy_visual.animation.definition.name,
+                            .speed = 0,
+                            .padding = enemy_visual.animation.definition.padding,
+                            .flip_x = enemy_visual.animation.definition.flip_x,
+                        });
+                        const speed = r.get(comp.Speed, e);
+                        var vel = r.get(comp.Velocity, e);
+                        // Make player bounce off the top of the enemy.
+                        vel.value.yMut().* = -speed.value.y() * 0.5;
+                    } else {
+                        // TODO: Implement proper player death.
+                        reset(g) catch unreachable;
+                    }
+                }
+            }
+        };
+        var collision = comp.Collision.new(shape.getSize());
+        collision.on_collision = @ptrCast(&OnCollision.f);
+        reg.add(player, collision);
         reg.add(player, comp.Gravity.new());
     }
 
-    // Spawn enemy 1.
+    // Spawn enemy.
     {
         const spawn_pos = m.Vec2.new(448, 512);
         const e = reg.create();
@@ -335,44 +378,44 @@ fn reset(game: *Game) !void {
             comp.Speed{ .value = m.Vec2.new(150, 0) },
             vel,
         );
-        reg.add(e, comp.Enemy.new(.goomba));
+        reg.add(e, comp.Enemy.new());
         reg.add(e, comp.Collision.new(shape.getSize()));
         reg.add(e, comp.Gravity.new());
     }
+}
 
-    // Spawn enemy 2.
-    {
-        const spawn_pos = m.Vec2.new(544, 192);
-        const e = reg.create();
-        const shape = comp.Shape.rectangle(15 * 2, 17 * 2);
-        entities.setRenderable(
-            reg,
-            e,
-            comp.Position.fromVec2(spawn_pos),
-            shape,
-            comp.Visual.animation(
-                game.sprites.enemies_texture,
-                game.sprites.enemies_atlas,
-                .{
-                    .name = "enemies_9",
-                    .speed = 6,
-                    .padding = m.Vec4.new(2, 3, 4, 3),
-                },
-            ),
-            comp.VisualLayer.new(1),
-        );
-        var vel = comp.Velocity.default();
-        vel.value.xMut().* = 3000;
-        entities.setMovable(
-            reg,
-            e,
-            comp.Speed{ .value = m.Vec2.new(200, 0) },
-            vel,
-        );
-        reg.add(e, comp.Enemy.new(.koopa));
-        reg.add(e, comp.Collision.new(shape.getSize()));
-        reg.add(e, comp.Gravity.new());
-    }
+pub fn spawnEnemy(game: *Game) void {
+    const reg = game.reg;
+    const spawn_pos = m.Vec2.new(544, 192);
+    const e = reg.create();
+    const shape = comp.Shape.rectangle(15 * 2, 17 * 2);
+    entities.setRenderable(
+        reg,
+        e,
+        comp.Position.fromVec2(spawn_pos),
+        shape,
+        comp.Visual.animation(
+            game.sprites.enemies_texture,
+            game.sprites.enemies_atlas,
+            .{
+                .name = "enemies_9",
+                .speed = 6,
+                .padding = m.Vec4.new(2, 3, 4, 3),
+            },
+        ),
+        comp.VisualLayer.new(1),
+    );
+    var vel = comp.Velocity.default();
+    vel.value.xMut().* = 3000;
+    entities.setMovable(
+        reg,
+        e,
+        comp.Speed{ .value = m.Vec2.new(200, 0) },
+        vel,
+    );
+    reg.add(e, comp.Enemy.new());
+    reg.add(e, comp.Collision.new(shape.getSize()));
+    reg.add(e, comp.Gravity.new());
 }
 
 pub fn updateEnemies(game: *Game) void {
@@ -380,21 +423,24 @@ pub fn updateEnemies(game: *Game) void {
     var view = reg.view(.{ comp.Enemy, comp.Velocity, comp.Speed, comp.Collision }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
-        const speed = view.get(comp.Speed, entity);
-        var vel = view.get(comp.Velocity, entity);
-        var visual = view.get(comp.Visual, entity);
-        const collision = view.get(comp.Collision, entity);
-        // Reverse direction if collision occurred on x axis.
-        const direction = if (collision.normal.x() == 0) std.math.sign(vel.value.x()) else collision.normal.x();
-        const direction_speed = speed.value.mul(m.Vec2.new(direction, 0));
-        const flip_x = direction < 0;
-        visual.animation.changeAnimation(.{
-            .name = visual.animation.definition.name,
-            .speed = visual.animation.definition.speed,
-            .padding = visual.animation.definition.padding,
-            .flip_x = flip_x,
-        });
-        vel.value.xMut().* = direction_speed.x();
+        const enemy = view.get(comp.Enemy, entity);
+        if (!enemy.dead) {
+            const speed = view.get(comp.Speed, entity);
+            var vel = view.get(comp.Velocity, entity);
+            var visual = view.get(comp.Visual, entity);
+            const collision = view.get(comp.Collision, entity);
+            // Reverse direction if collision occurred on x axis.
+            const direction = if (collision.normal.x() == 0) std.math.sign(vel.value.x()) else collision.normal.x();
+            const direction_speed = speed.value.mul(m.Vec2.new(direction, 0));
+            const flip_x = direction < 0;
+            visual.animation.changeAnimation(.{
+                .name = visual.animation.definition.name,
+                .speed = visual.animation.definition.speed,
+                .padding = visual.animation.definition.padding,
+                .flip_x = flip_x,
+            });
+            vel.value.xMut().* = direction_speed.x();
+        }
     }
 }
 
@@ -402,7 +448,12 @@ pub fn updateEnemies(game: *Game) void {
 // Physics
 //------------------------------------------------------------------------------
 
-fn handleCollision(allocator: std.mem.Allocator, reg: *entt.Registry, delta_time: f32) !void {
+fn handleCollision(
+    allocator: std.mem.Allocator,
+    reg: *entt.Registry,
+    delta_time: f32,
+    collision_context: ?*void,
+) !void {
     const BroadphaseCollision = struct {
         entity: entt.Entity,
         aabb: coll.Aabb,
@@ -423,10 +474,10 @@ fn handleCollision(allocator: std.mem.Allocator, reg: *entt.Registry, delta_time
     // Perform collision detection and response.
     while (it.next()) |entity| {
         const pos = view.get(comp.Position, entity);
-        var collision = view.get(comp.Collision, entity);
+        var collision_comp = view.get(comp.Collision, entity);
         var vel = view.get(comp.Velocity, entity);
-        const aabb = coll.Aabb.new(pos.toVec2(), collision.aabb_size);
-        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision.aabb_size, vel.value.scale(delta_time));
+        const aabb = coll.Aabb.new(pos.toVec2(), collision_comp.aabb_size);
+        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision_comp.aabb_size, vel.value.scale(delta_time));
 
         var collisions = std.ArrayList(BroadphaseCollision).init(allocator);
         defer collisions.deinit();
@@ -449,7 +500,7 @@ fn handleCollision(allocator: std.mem.Allocator, reg: *entt.Registry, delta_time
                 collider_size,
                 collider_vel.scale(delta_time),
             );
-            // Check intersection beween broadphase AABBs.
+            // Check intersection between broadphase AABBs.
             if (broadphase_aabb.intersects(broadphase_collider_aabb)) {
                 const collider_aabb = coll.Aabb.new(collider_pos, collider_size);
                 const relative_vel = vel.value.sub(collider_vel).scale(delta_time);
@@ -481,16 +532,35 @@ fn handleCollision(allocator: std.mem.Allocator, reg: *entt.Registry, delta_time
                 vel.value = coll.resolveCollision(result, vel.value);
                 // Set collision normals.
                 if (result.normal.x() != 0) {
-                    collision.normal.xMut().* = result.normal.x();
+                    collision_comp.normal.xMut().* = result.normal.x();
                 }
                 if (result.normal.y() != 0) {
-                    collision.normal.yMut().* = result.normal.y();
+                    collision_comp.normal.yMut().* = result.normal.y();
                 }
                 // Resolve collision for dynamic collider.
                 if (reg.tryGet(comp.Velocity, collider.entity)) |collider_vel| {
                     collider_vel.value = coll.resolveCollision(result, collider_vel.value);
                     var collider_collision = reg.get(comp.Collision, collider.entity);
-                    collider_collision.normal = collision.normal.scale(-1);
+                    collider_collision.normal = collision_comp.normal.scale(-1);
+                }
+                if (collision_comp.on_collision) |on_collision| {
+                    on_collision(
+                        reg,
+                        entity,
+                        collider.entity,
+                        result,
+                        collision_context,
+                    );
+                }
+                const collider_collision_comp = reg.get(comp.Collision, collider.entity);
+                if (collider_collision_comp.on_collision) |on_collision| {
+                    on_collision(
+                        reg,
+                        collider.entity,
+                        entity,
+                        result,
+                        collision_context,
+                    );
                 }
             }
         }
