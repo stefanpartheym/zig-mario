@@ -37,6 +37,7 @@ pub fn main() !void {
     var game = Game.new(&app, &reg);
     app.start();
 
+    // Load sprites
     var tilemap = try tiled.Tilemap.fromFile(alloc.allocator(), "./assets/map/map.tmj");
     defer tilemap.deinit();
     const tileset = try tilemap.getTileset(1);
@@ -44,8 +45,18 @@ pub fn main() !void {
     defer tileset_texture.unload();
     const player_texture = try u.rl.loadTexture(alloc.allocator(), "./assets/player.atlas.png");
     defer player_texture.unload();
-    var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 4, 4, "player");
+    var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 4, 4, "player_");
     defer player_atlas.deinit();
+    const enemies_texture = try u.rl.loadTexture(alloc.allocator(), "./assets/enemies.atlas.png");
+    defer enemies_texture.unload();
+    var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
+    defer enemies_atlas.deinit();
+
+    game.sprites.tileset_texture = &tileset_texture;
+    game.sprites.player_texture = &player_texture;
+    game.sprites.player_atlas = &player_atlas;
+    game.sprites.enemies_texture = &enemies_texture;
+    game.sprites.enemies_atlas = &enemies_atlas;
 
     var camera = rl.Camera2D{
         .target = .{ .x = 0, .y = 0 },
@@ -54,7 +65,7 @@ pub fn main() !void {
         .zoom = app.getDpiFactor().x(),
     };
 
-    try reset(&game, &tilemap, tileset, &tileset_texture, &player_texture, &player_atlas);
+    try reset(&game, &tilemap, tileset);
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
@@ -119,7 +130,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
 
     const last_animation = visual.animation.definition;
     var next_animation = comp.Visual.AnimationDefinition{
-        .name = "player0",
+        .name = "player_0",
         .speed = 1.5,
         // Inherit flip flag from last animation.
         .flip_x = last_animation.flip_x,
@@ -135,12 +146,12 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     // Move left.
     if (rl.isKeyDown(.key_h) or rl.isKeyDown(.key_left)) {
         vel.value.xMut().* += -speed_value.x() * delta_time;
-        next_animation = .{ .name = "player2", .speed = 8, .flip_x = true };
+        next_animation = .{ .name = "player_2", .speed = 8, .flip_x = true };
     }
     // Move right.
     else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
         vel.value.xMut().* += speed_value.x() * delta_time;
-        next_animation = .{ .name = "player2", .speed = 8, .flip_x = false };
+        next_animation = .{ .name = "player_2", .speed = 8, .flip_x = false };
     }
 
     // Jump.
@@ -151,7 +162,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     // Set jump animation if player is in the air.
     if (!collision.grounded()) {
         next_animation = .{
-            .name = "player2",
+            .name = "player_2",
             .speed = 0,
             // Inherit flip flag from current movement.
             .flip_x = next_animation.flip_x,
@@ -189,9 +200,6 @@ fn reset(
     game: *Game,
     tilemap: *const tiled.Tilemap,
     tileset: *const tiled.Tileset,
-    tileset_texture: *const rl.Texture,
-    player_texture: *const rl.Texture,
-    player_atlas: *graphics.sprites.AnimatedSpriteSheet,
 ) !void {
     const reg = game.reg;
 
@@ -242,7 +250,7 @@ fn reset(
                         entity,
                         pos,
                         shape,
-                        comp.Visual.sprite(tileset_texture, tileset.getSpriteRect(tile_id)),
+                        comp.Visual.sprite(game.sprites.tileset_texture, tileset.getSpriteRect(tile_id)),
                         null,
                     );
                     // Add collision for first layer only.
@@ -276,7 +284,11 @@ fn reset(
             player,
             pos,
             shape,
-            comp.Visual.animation(player_texture, player_atlas, .{ .name = "player0", .speed = 1.5 }),
+            comp.Visual.animation(
+                game.sprites.player_texture,
+                game.sprites.player_atlas,
+                .{ .name = "player_0", .speed = 1.5 },
+            ),
             comp.VisualLayer.new(1),
         );
         entities.setMovable(
@@ -292,31 +304,71 @@ fn reset(
         reg.add(player, comp.Gravity.new());
     }
 
-    // Spawn enemy.
+    // Spawn enemy 1.
     {
         const spawn_pos = m.Vec2.new(448, 512);
         const e = reg.create();
-        const shape = comp.Shape.rectangle(32, 32);
+        const shape = comp.Shape.rectangle(18 * 2, 10 * 2);
         entities.setRenderable(
             reg,
             e,
             comp.Position.fromVec2(spawn_pos),
             shape,
-            comp.Visual.stub(),
+            comp.Visual.animation(
+                game.sprites.enemies_texture,
+                game.sprites.enemies_atlas,
+                .{
+                    .name = "enemies_0",
+                    .speed = 6,
+                    .padding = m.Vec4.new(0, 10, 2, 10),
+                },
+            ),
             comp.VisualLayer.new(1),
         );
+
         var vel = comp.Velocity.default();
         vel.value.xMut().* = -3000;
         entities.setMovable(
             reg,
             e,
-            comp.Speed{
-                .default = m.Vec2.new(200, 1000),
-                .airborne = m.Vec2.new(100, 0),
-            },
+            comp.Speed{ .default = m.Vec2.new(150, 1000) },
             vel,
         );
         reg.add(e, comp.Enemy.new(.goomba));
+        reg.add(e, comp.Collision.new(shape.getSize()));
+        reg.add(e, comp.Gravity.new());
+    }
+
+    // Spawn enemy 2.
+    {
+        const spawn_pos = m.Vec2.new(544, 192);
+        const e = reg.create();
+        const shape = comp.Shape.rectangle(15 * 2, 17 * 2);
+        entities.setRenderable(
+            reg,
+            e,
+            comp.Position.fromVec2(spawn_pos),
+            shape,
+            comp.Visual.animation(
+                game.sprites.enemies_texture,
+                game.sprites.enemies_atlas,
+                .{
+                    .name = "enemies_9",
+                    .speed = 6,
+                    .padding = m.Vec4.new(2, 3, 4, 3),
+                },
+            ),
+            comp.VisualLayer.new(1),
+        );
+        var vel = comp.Velocity.default();
+        vel.value.xMut().* = 3000;
+        entities.setMovable(
+            reg,
+            e,
+            comp.Speed{ .default = m.Vec2.new(200, 1000) },
+            vel,
+        );
+        reg.add(e, comp.Enemy.new(.koopa));
         reg.add(e, comp.Collision.new(shape.getSize()));
         reg.add(e, comp.Gravity.new());
     }
@@ -329,10 +381,18 @@ pub fn updateEnemies(game: *Game) void {
     while (it.next()) |entity| {
         const speed = view.get(comp.Speed, entity);
         var vel = view.get(comp.Velocity, entity);
+        var visual = view.get(comp.Visual, entity);
         const collision = view.get(comp.Collision, entity);
         // Reverse direction if collision occurred on x axis.
         const direction = if (collision.normal.x() == 0) std.math.sign(vel.value.x()) else collision.normal.x();
         const direction_speed = speed.default.mul(m.Vec2.new(direction, 0));
+        const flip_x = direction < 0;
+        visual.animation.changeAnimation(.{
+            .name = visual.animation.definition.name,
+            .speed = visual.animation.definition.speed,
+            .padding = visual.animation.definition.padding,
+            .flip_x = flip_x,
+        });
         vel.value.xMut().* = direction_speed.x();
     }
 }

@@ -1,5 +1,7 @@
 const std = @import("std");
+const rl = @import("raylib");
 const entt = @import("entt");
+const graphics = @import("graphics/mod.zig");
 const m = @import("math/mod.zig");
 const application = @import("application.zig");
 const comp = @import("components.zig");
@@ -46,6 +48,16 @@ pub const GameEntities = struct {
     }
 };
 
+pub const GameSprites = struct {
+    const Self = @This();
+
+    tileset_texture: *const rl.Texture = undefined,
+    player_texture: *const rl.Texture = undefined,
+    player_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
+    enemies_texture: *const rl.Texture = undefined,
+    enemies_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
+};
+
 /// Contains all game related state.
 pub const Game = struct {
     const Self = @This();
@@ -57,6 +69,7 @@ pub const Game = struct {
     debug_mode: bool,
 
     entities: GameEntities,
+    sprites: GameSprites,
     score: u32,
     lives: u8,
     /// Tracks the time elapsed since the the player started the game.
@@ -74,6 +87,7 @@ pub const Game = struct {
             .reg = reg,
             .debug_mode = false,
             .entities = GameEntities.new(reg),
+            .sprites = GameSprites{},
             .score = 0,
             .lives = 3,
             .timer = Timer.new(),

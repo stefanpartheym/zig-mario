@@ -61,7 +61,7 @@ pub const Speed = struct {
     default: m.Vec2,
 
     /// Speed to be applied when entity is in the air.
-    airborne: ?m.Vec2,
+    airborne: ?m.Vec2 = null,
 };
 
 pub const Direction = enum {
@@ -221,13 +221,16 @@ pub const Visual = union(VisualType) {
         speed: f32 = 1,
         flip_x: bool = false,
         flip_y: bool = false,
+        /// Frame padding.
+        padding: m.Vec4 = m.Vec4.zero(),
 
         pub fn eql(self: @This(), other: @This()) bool {
             return std.mem.eql(u8, self.name, other.name) and
                 self.loop == other.loop and
                 self.speed == other.speed and
                 self.flip_x == other.flip_x and
-                self.flip_y == other.flip_y;
+                self.flip_y == other.flip_y and
+                self.padding.eql(other.padding);
         }
     };
 

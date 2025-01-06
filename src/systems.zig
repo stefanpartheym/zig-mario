@@ -138,17 +138,22 @@ fn drawEntity(pos: comp.Position, shape: comp.Shape, visual: comp.Visual) void {
             visual.sprite.texture.*,
         ),
         .animation => {
-            var anim = visual.animation.playing_animation;
-            const frame = anim.getCurrentFrame();
-            const texture_width = @as(f32, @floatFromInt(visual.animation.texture.width));
-            const texture_height = @as(f32, @floatFromInt(visual.animation.texture.height));
-            const flip_sign_x: f32 = if (visual.animation.definition.flip_x) -1 else 1;
-            const flip_sign_y: f32 = if (visual.animation.definition.flip_y) -1 else 1;
+            var animation = visual.animation;
+            const padding = animation.definition.padding;
+            const frame = animation.playing_animation.getCurrentFrame();
+            const texture_width = @as(f32, @floatFromInt(animation.texture.width));
+            const texture_height = @as(f32, @floatFromInt(animation.texture.height));
+            const flip_sign_x: f32 = if (animation.definition.flip_x) -1 else 1;
+            const flip_sign_y: f32 = if (animation.definition.flip_y) -1 else 1;
+            const frame_size = m.Vec2.new(
+                texture_width * (frame.region.u_2 - frame.region.u),
+                texture_height * (frame.region.v_2 - frame.region.v),
+            );
             const source_rect = m.Rect{
-                .x = texture_width * frame.region.u,
-                .y = texture_height * frame.region.v,
-                .width = texture_width * (frame.region.u_2 - frame.region.u) * flip_sign_x,
-                .height = texture_height * (frame.region.v_2 - frame.region.v) * flip_sign_y,
+                .x = texture_width * frame.region.u + padding.x(),
+                .y = texture_height * frame.region.v + padding.y(),
+                .width = (frame_size.x() - padding.z()) * flip_sign_x,
+                .height = (frame_size.y() - padding.w()) * flip_sign_y,
             };
             drawSprite(
                 .{
@@ -158,7 +163,7 @@ fn drawEntity(pos: comp.Position, shape: comp.Shape, visual: comp.Visual) void {
                     .height = shape.getHeight(),
                 },
                 source_rect,
-                visual.animation.texture.*,
+                animation.texture.*,
             );
         },
     }
