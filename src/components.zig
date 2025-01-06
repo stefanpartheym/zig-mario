@@ -56,12 +56,7 @@ pub const Velocity = struct {
 };
 
 pub const Speed = struct {
-    /// Default speed.
-    /// Used when entity is grounded or if no `airborne` speed is defined.
-    default: m.Vec2,
-
-    /// Speed to be applied when entity is in the air.
-    airborne: ?m.Vec2 = null,
+    value: m.Vec2,
 };
 
 pub const Direction = enum {

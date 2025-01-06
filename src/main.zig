@@ -79,7 +79,6 @@ pub fn main() !void {
 
         // Physics
         applyGravity(game.reg, 980 * delta_time);
-        applyDrag(game.reg, 10 * delta_time);
         try handleCollision(alloc.allocator(), game.reg, delta_time);
         clampVelocity(game.reg);
         updatePosition(game.reg, delta_time);
@@ -129,7 +128,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const reg = game.reg;
     const player_entity = game.entities.getPlayer();
     const collision = reg.get(comp.Collision, player_entity);
-    const speed = reg.get(comp.Speed, player_entity);
+    const speed = reg.get(comp.Speed, player_entity).value;
     var vel = reg.get(comp.Velocity, player_entity);
     var visual = reg.get(comp.Visual, player_entity);
 
@@ -141,27 +140,29 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
         .flip_x = last_animation.flip_x,
     };
 
-    // Use appropriate speed based on whether the player is on the ground or in
-    // the air.
-    const speed_value = if (collision.grounded())
-        speed.default
-    else
-        speed.airborne orelse speed.default;
+    const accel_factor: f32 = 4;
+    const decel_factor: f32 = if (collision.grounded()) 15 else 0.5;
+    const acceleration = speed.x() * accel_factor * delta_time;
 
     // Move left.
     if (rl.isKeyDown(.key_h) or rl.isKeyDown(.key_left)) {
-        vel.value.xMut().* += -speed_value.x() * delta_time;
+        vel.value.xMut().* = std.math.clamp(vel.value.x() - acceleration, -speed.x(), speed.x());
         next_animation = .{ .name = "player_2", .speed = 8, .flip_x = true };
     }
     // Move right.
     else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
-        vel.value.xMut().* += speed_value.x() * delta_time;
+        vel.value.xMut().* = std.math.clamp(vel.value.x() + acceleration, -speed.x(), speed.x());
         next_animation = .{ .name = "player_2", .speed = 8, .flip_x = false };
+    }
+    // Gradually stop moving.
+    else {
+        vel.value.xMut().* += -vel.value.x() * decel_factor * delta_time;
+        if (@abs(vel.value.x()) < 0.01) vel.value.xMut().* = 0;
     }
 
     // Jump.
     if (rl.isKeyPressed(.key_space) and vel.value.y() == 0) {
-        vel.value.yMut().* = -speed.default.y();
+        vel.value.yMut().* = -speed.y();
     }
 
     // Set jump animation if player is in the air.
@@ -297,10 +298,7 @@ fn reset(game: *Game) !void {
         entities.setMovable(
             reg,
             player,
-            comp.Speed{
-                .default = m.Vec2.new(3000, 600),
-                .airborne = m.Vec2.new(300, 0),
-            },
+            comp.Speed{ .value = m.Vec2.new(250, 600) },
             comp.Velocity.default(),
         );
         reg.add(player, comp.Collision.new(shape.getSize()));
@@ -334,7 +332,7 @@ fn reset(game: *Game) !void {
         entities.setMovable(
             reg,
             e,
-            comp.Speed{ .default = m.Vec2.new(150, 1000) },
+            comp.Speed{ .value = m.Vec2.new(150, 0) },
             vel,
         );
         reg.add(e, comp.Enemy.new(.goomba));
@@ -368,7 +366,7 @@ fn reset(game: *Game) !void {
         entities.setMovable(
             reg,
             e,
-            comp.Speed{ .default = m.Vec2.new(200, 1000) },
+            comp.Speed{ .value = m.Vec2.new(200, 0) },
             vel,
         );
         reg.add(e, comp.Enemy.new(.koopa));
@@ -388,7 +386,7 @@ pub fn updateEnemies(game: *Game) void {
         const collision = view.get(comp.Collision, entity);
         // Reverse direction if collision occurred on x axis.
         const direction = if (collision.normal.x() == 0) std.math.sign(vel.value.x()) else collision.normal.x();
-        const direction_speed = speed.default.mul(m.Vec2.new(direction, 0));
+        const direction_speed = speed.value.mul(m.Vec2.new(direction, 0));
         const flip_x = direction < 0;
         visual.animation.changeAnimation(.{
             .name = visual.animation.definition.name,
@@ -508,20 +506,6 @@ fn applyGravity(reg: *entt.Registry, force: f32) void {
         const gravity_amount = force * gravity.factor;
         var vel = view.get(comp.Velocity, entity);
         vel.value.yMut().* += gravity_amount;
-    }
-}
-
-/// Apply horizontal drag to all currently grounded entities.
-fn applyDrag(reg: *entt.Registry, force: f32) void {
-    var view = reg.view(.{ comp.Velocity, comp.Collision }, .{});
-    var it = view.entityIterator();
-    while (it.next()) |entity| {
-        const collision = view.get(comp.Collision, entity);
-        if (!collision.grounded()) continue;
-        var vel = view.get(comp.Velocity, entity);
-        const drag_amount = -force * vel.value.x();
-        vel.value.xMut().* += drag_amount;
-        if (@abs(vel.value.x()) < 1) vel.value.xMut().* = 0;
     }
 }
 
