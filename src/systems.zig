@@ -73,6 +73,23 @@ pub fn debugDraw(reg: *entt.Registry, color: rl.Color) void {
     }
 }
 
+/// Draw entity velocities.
+pub fn debugDrawVelocity(reg: *entt.Registry, color: rl.Color, delta_time: f32) void {
+    var view = reg.view(.{ comp.Position, comp.Shape, comp.Velocity }, .{});
+    var iter = view.entityIterator();
+    while (iter.next()) |entity| {
+        const pos = view.getConst(comp.Position, entity);
+        const shape = view.getConst(comp.Shape, entity);
+        const vel = view.getConst(comp.Velocity, entity);
+        // Draw entity AABB outline.
+        drawEntity(
+            comp.Position.fromVec2(pos.toVec2().add(vel.value.scale(delta_time))),
+            comp.Shape.rectangle(shape.getWidth(), shape.getHeight()),
+            comp.Visual.color(color, true),
+        );
+    }
+}
+
 /// Draw FPS
 pub fn debugDrawFps() void {
     rl.drawFPS(10, 10);

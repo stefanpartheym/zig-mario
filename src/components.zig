@@ -376,13 +376,22 @@ pub const Collision = struct {
 
     /// AABB
     aabb_size: m.Vec2,
+    /// Collision normal.
+    /// Will contain the normals the entity collided with in the last frame.
+    normal: m.Vec2,
     /// Collision callback.
     on_collision: ?*const fn (*entt.Registry, entt.Entity, entt.Entity) void = undefined,
-    /// Flag indicating if the entity is currently on the ground.
-    grounded: bool,
 
     pub fn new(aabb_size: m.Vec2) Self {
-        return Self{ .aabb_size = aabb_size, .on_collision = null, .grounded = false };
+        return Self{
+            .aabb_size = aabb_size,
+            .normal = m.Vec2.zero(),
+            .on_collision = null,
+        };
+    }
+
+    pub fn grounded(self: *const Self) bool {
+        return self.normal.y() < 0;
     }
 };
 
@@ -405,14 +414,17 @@ pub const Gravity = struct {
 // Game specific components
 //------------------------------------------------------------------------------
 
-pub const Player = struct {
+pub const EnemyType = enum {
+    goomba,
+    koopa,
+};
+
+pub const Enemy = struct {
     const Self = @This();
 
-    jump_timer: Timer,
+    type: EnemyType,
 
-    pub fn new() Self {
-        return Self{
-            .jump_timer = Timer.new(),
-        };
+    pub fn new(enemy_type: EnemyType) Self {
+        return Self{ .type = enemy_type };
     }
 };

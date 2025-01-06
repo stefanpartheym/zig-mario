@@ -62,10 +62,13 @@ pub fn main() !void {
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
 
+        // AI
+        updateEnemies(&game);
+
         // Physics
         applyGravity(game.reg, 980 * delta_time);
         applyDrag(game.reg, 10 * delta_time);
-        try handleCollision(game.reg, alloc.allocator());
+        try handleCollision(alloc.allocator(), game.reg, delta_time);
         clampVelocity(game.reg);
         updatePosition(game.reg, delta_time);
 
@@ -79,6 +82,7 @@ pub fn main() !void {
             systems.draw(game.reg);
             if (game.debug_mode) {
                 systems.debugDraw(game.reg, rl.Color.yellow);
+                systems.debugDrawVelocity(game.reg, rl.Color.red, delta_time);
             }
             camera.end();
         }
@@ -98,10 +102,6 @@ fn handleAppInput(game: *Game) void {
 
     if (rl.isKeyPressed(rl.KeyboardKey.key_f1)) {
         game.toggleDebugMode();
-    }
-
-    if (rl.isKeyPressed(.key_f2)) {
-        spawnDebugBox(game.reg);
     }
 }
 
@@ -127,7 +127,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
 
     // Use appropriate speed based on whether the player is on the ground or in
     // the air.
-    const speed_value = if (collision.grounded)
+    const speed_value = if (collision.grounded())
         speed.default
     else
         speed.airborne orelse speed.default;
@@ -149,7 +149,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     }
 
     // Set jump animation if player is in the air.
-    if (!collision.grounded) {
+    if (!collision.grounded()) {
         next_animation = .{
             .name = "player2",
             .speed = 0,
@@ -202,6 +202,21 @@ fn reset(
     var it = reg.entities();
     while (it.next()) |entity| {
         reg.destroy(entity);
+    }
+
+    const map_size = m.Vec2.new(
+        @floatFromInt(tilemap.data.width * tilemap.data.tilewidth),
+        @floatFromInt(tilemap.data.height * tilemap.data.tileheight),
+    );
+
+    // Setup map boundaries.
+    {
+        const left = reg.create();
+        reg.add(left, comp.Position.new(0, 0));
+        reg.add(left, comp.Collision.new(map_size.mul(m.Vec2.new(0, 1))));
+        const right = reg.create();
+        reg.add(right, comp.Position.new(map_size.x(), 0));
+        reg.add(right, comp.Collision.new(map_size.mul(m.Vec2.new(0, 1))));
     }
 
     // Setup tilemap.
@@ -273,54 +288,84 @@ fn reset(
             },
             comp.Velocity.default(),
         );
-        reg.add(player, comp.Player.new());
         reg.add(player, comp.Collision.new(shape.getSize()));
         reg.add(player, comp.Gravity.new());
     }
+
+    // Spawn enemy.
+    {
+        const spawn_pos = m.Vec2.new(448, 512);
+        const e = reg.create();
+        const shape = comp.Shape.rectangle(32, 32);
+        entities.setRenderable(
+            reg,
+            e,
+            comp.Position.fromVec2(spawn_pos),
+            shape,
+            comp.Visual.stub(),
+            comp.VisualLayer.new(1),
+        );
+        var vel = comp.Velocity.default();
+        vel.value.xMut().* = -3000;
+        entities.setMovable(
+            reg,
+            e,
+            comp.Speed{
+                .default = m.Vec2.new(200, 1000),
+                .airborne = m.Vec2.new(100, 0),
+            },
+            vel,
+        );
+        reg.add(e, comp.Enemy.new(.goomba));
+        reg.add(e, comp.Collision.new(shape.getSize()));
+        reg.add(e, comp.Gravity.new());
+    }
 }
 
-/// Spawn a small box at current mouse position for debugging purposes.
-fn spawnDebugBox(reg: *entt.Registry) void {
-    const entity = reg.create();
-    const pos = rl.getMousePosition();
-    const shape = comp.Shape.rectangle(25, 25);
-    entities.setRenderable(
-        reg,
-        entity,
-        comp.Position.new(pos.x, pos.y),
-        shape,
-        comp.Visual.stub(),
-        comp.VisualLayer.new(1),
-    );
-    reg.add(entity, comp.Velocity.default());
-    reg.add(entity, comp.Collision.new(shape.getSize()));
-    reg.add(entity, comp.Gravity.new());
+pub fn updateEnemies(game: *Game) void {
+    const reg = game.reg;
+    var view = reg.view(.{ comp.Enemy, comp.Velocity, comp.Speed, comp.Collision }, .{});
+    var it = view.entityIterator();
+    while (it.next()) |entity| {
+        const speed = view.get(comp.Speed, entity);
+        var vel = view.get(comp.Velocity, entity);
+        const collision = view.get(comp.Collision, entity);
+        // Reverse direction if collision occurred on x axis.
+        const direction = if (collision.normal.x() == 0) std.math.sign(vel.value.x()) else collision.normal.x();
+        const direction_speed = speed.default.mul(m.Vec2.new(direction, 0));
+        vel.value.xMut().* = direction_speed.x();
+    }
 }
 
 //------------------------------------------------------------------------------
 // Physics
 //------------------------------------------------------------------------------
 
-fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
+fn handleCollision(allocator: std.mem.Allocator, reg: *entt.Registry, delta_time: f32) !void {
     const BroadphaseCollision = struct {
+        entity: entt.Entity,
         aabb: coll.Aabb,
+        vel: m.Vec2,
         result: coll.CollisionResult,
     };
 
-    const delta_time = rl.getFrameTime();
-
     var view = reg.view(.{ comp.Position, comp.Velocity, comp.Collision }, .{});
     var it = view.entityIterator();
+
+    // Reset collision state for all dynamic entities.
+    while (it.next()) |entity| {
+        var collision = view.get(comp.Collision, entity);
+        collision.normal = m.Vec2.zero();
+    }
+
+    it.reset();
+    // Perform collision detection and response.
     while (it.next()) |entity| {
         const pos = view.get(comp.Position, entity);
         var collision = view.get(comp.Collision, entity);
         var vel = view.get(comp.Velocity, entity);
-        const vel_scaled = vel.value.scale(delta_time);
         const aabb = coll.Aabb.new(pos.toVec2(), collision.aabb_size);
-        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision.aabb_size, vel_scaled);
-
-        // Reset grounded flag.
-        collision.grounded = false;
+        const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision.aabb_size, vel.value.scale(delta_time));
 
         var collisions = std.ArrayList(BroadphaseCollision).init(allocator);
         defer collisions.deinit();
@@ -330,17 +375,31 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
         var collider_it = collider_view.entityIterator();
         while (collider_it.next()) |collider| {
             if (collider == entity) continue;
-            const collider_pos = collider_view.get(comp.Position, collider);
+            const collider_pos = collider_view.get(comp.Position, collider).toVec2();
             const collider_size = collider_view.get(comp.Collision, collider).aabb_size;
-            const collider_aabb = coll.Aabb.new(collider_pos.toVec2(), collider_size);
-            if (broadphase_aabb.intersects(collider_aabb)) {
-                const result = coll.aabbToAabb(aabb, collider_aabb, vel_scaled);
-                if (result.hit) {
-                    try collisions.append(.{
-                        .aabb = collider_aabb,
-                        .result = result,
-                    });
-                }
+            // Get collider velocity, if available.
+            const collider_vel = if (reg.tryGet(comp.Velocity, collider)) |collider_vel_comp|
+                collider_vel_comp.value
+            else
+                m.Vec2.zero();
+            // Calculate broadphase collider AABB based on potential movement.
+            const broadphase_collider_aabb = coll.Aabb.fromMovement(
+                collider_pos,
+                collider_size,
+                collider_vel.scale(delta_time),
+            );
+            // Check intersection beween broadphase AABBs.
+            if (broadphase_aabb.intersects(broadphase_collider_aabb)) {
+                const collider_aabb = coll.Aabb.new(collider_pos, collider_size);
+                const relative_vel = vel.value.sub(collider_vel).scale(delta_time);
+                // Calculate time of impact based on relative velocity.
+                const result = coll.aabbToAabb(aabb, collider_aabb, relative_vel);
+                try collisions.append(.{
+                    .entity = collider,
+                    .aabb = collider_aabb,
+                    .result = result,
+                    .vel = collider_vel,
+                });
             }
         }
 
@@ -354,14 +413,23 @@ fn handleCollision(reg: *entt.Registry, allocator: std.mem.Allocator) !void {
         std.sort.insertion(BroadphaseCollision, collisions.items, {}, SortContext.sort);
 
         // Resolve collisions in order.
-        for (collisions.items) |broadphase_result| {
-            const result = coll.aabbToAabb(aabb, broadphase_result.aabb, vel.value.scale(delta_time));
+        for (collisions.items) |collider| {
+            const relative_vel = vel.value.sub(collider.vel).scale(delta_time);
+            const result = coll.aabbToAabb(aabb, collider.aabb, relative_vel);
             if (result.hit) {
                 vel.value = coll.resolveCollision(result, vel.value);
-                // Set grounded flag, if entity collided with normal facing
-                // upwards.
-                if (result.normal.y() < 0) {
-                    collision.grounded = true;
+                // Set collision normals.
+                if (result.normal.x() != 0) {
+                    collision.normal.xMut().* = result.normal.x();
+                }
+                if (result.normal.y() != 0) {
+                    collision.normal.yMut().* = result.normal.y();
+                }
+                // Resolve collision for dynamic collider.
+                if (reg.tryGet(comp.Velocity, collider.entity)) |collider_vel| {
+                    collider_vel.value = coll.resolveCollision(result, collider_vel.value);
+                    var collider_collision = reg.get(comp.Collision, collider.entity);
+                    collider_collision.normal = collision.normal.scale(-1);
                 }
             }
         }
@@ -386,7 +454,7 @@ fn applyDrag(reg: *entt.Registry, force: f32) void {
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const collision = view.get(comp.Collision, entity);
-        if (!collision.grounded) continue;
+        if (!collision.grounded()) continue;
         var vel = view.get(comp.Velocity, entity);
         const drag_amount = -force * vel.value.x();
         vel.value.xMut().* += drag_amount;
