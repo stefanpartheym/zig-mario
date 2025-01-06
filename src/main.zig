@@ -52,6 +52,7 @@ pub fn main() !void {
     var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
     defer enemies_atlas.deinit();
 
+    game.tilemap = &tilemap;
     game.sprites.tileset_texture = &tileset_texture;
     game.sprites.player_texture = &player_texture;
     game.sprites.player_atlas = &player_atlas;
@@ -65,7 +66,7 @@ pub fn main() !void {
         .zoom = app.getDpiFactor().x(),
     };
 
-    try reset(&game, &tilemap, tileset);
+    try reset(&game);
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
@@ -105,14 +106,18 @@ pub fn main() !void {
 
 fn handleAppInput(game: *Game) void {
     if (rl.windowShouldClose() or
-        rl.isKeyPressed(rl.KeyboardKey.key_escape) or
-        rl.isKeyPressed(rl.KeyboardKey.key_q))
+        rl.isKeyPressed(.key_escape) or
+        rl.isKeyPressed(.key_q))
     {
         game.app.shutdown();
     }
 
-    if (rl.isKeyPressed(rl.KeyboardKey.key_f1)) {
+    if (rl.isKeyPressed(.key_f1)) {
         game.toggleDebugMode();
+    }
+
+    if (rl.isKeyPressed(.key_r)) {
+        reset(game) catch unreachable;
     }
 }
 
@@ -196,11 +201,7 @@ fn updateCamera(game: *Game, camera: *rl.Camera2D) void {
 }
 
 /// Reset game state.
-fn reset(
-    game: *Game,
-    tilemap: *const tiled.Tilemap,
-    tileset: *const tiled.Tileset,
-) !void {
+fn reset(game: *Game) !void {
     const reg = game.reg;
 
     // Clear entity references.
@@ -212,6 +213,7 @@ fn reset(
         reg.destroy(entity);
     }
 
+    const tilemap = game.tilemap;
     const map_size = m.Vec2.new(
         @floatFromInt(tilemap.data.width * tilemap.data.tilewidth),
         @floatFromInt(tilemap.data.height * tilemap.data.tileheight),
@@ -229,6 +231,7 @@ fn reset(
 
     // Setup tilemap.
     {
+        const tileset = try tilemap.getTileset(1);
         for (tilemap.data.layers) |layer| {
             if (!layer.visible or layer.type != .tilelayer) continue;
             var x: usize = 0;

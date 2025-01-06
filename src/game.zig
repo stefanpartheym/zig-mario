@@ -5,6 +5,7 @@ const graphics = @import("graphics/mod.zig");
 const m = @import("math/mod.zig");
 const application = @import("application.zig");
 const comp = @import("components.zig");
+const tiled = @import("tiled.zig");
 const Timer = @import("timer.zig").Timer;
 
 const GameState = enum {
@@ -70,6 +71,8 @@ pub const Game = struct {
 
     entities: GameEntities,
     sprites: GameSprites,
+    tilemap: *tiled.Tilemap,
+
     score: u32,
     lives: u8,
     /// Tracks the time elapsed since the the player started the game.
@@ -88,6 +91,7 @@ pub const Game = struct {
             .debug_mode = false,
             .entities = GameEntities.new(reg),
             .sprites = GameSprites{},
+            .tilemap = undefined,
             .score = 0,
             .lives = 3,
             .timer = Timer.new(),
