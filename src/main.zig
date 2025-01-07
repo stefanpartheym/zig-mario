@@ -83,16 +83,20 @@ pub fn main() !void {
         handlePlayerInput(&game, delta_time);
 
         // Physics
-        applyGravity(game.reg, 980 * delta_time);
+        systems.applyGravity(game.reg, 980 * delta_time);
         try handleCollision(alloc.allocator(), game.reg, delta_time, @ptrCast(&game));
-        clampVelocity(game.reg);
-        updatePosition(game.reg, delta_time);
+        systems.clampVelocity(game.reg);
+        systems.updatePosition(game.reg, delta_time);
 
         // AI
         updateEnemies(&game);
 
         // Graphics
-        updateCamera(&game, &camera);
+        graphics.camera.updateCameraTarget(
+            &camera,
+            game.entities.getPlayerCenter(),
+            m.Vec2.new(0.3, 0.3),
+        );
         systems.updateAnimations(game.reg);
         systems.beginFrame(rl.getColor(0x202640ff));
         // Camera mode
@@ -191,28 +195,6 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
 
     // Change animation.
     visual.animation.changeAnimation(next_animation);
-}
-
-/// Update the camera to follow the player if a certain threshold is reached.
-fn updateCamera(game: *Game, camera: *rl.Camera2D) void {
-    const threshold = m.Vec2.new(0.3, 0.3);
-    const display = m.Vec2.new(
-        @as(f32, @floatFromInt(rl.getRenderWidth())),
-        @as(f32, @floatFromInt(rl.getRenderHeight())),
-    );
-    const target = game.entities.getPlayerCenter();
-
-    // Update camera offset.
-    const camera_offset = m.Vec2.one().sub(threshold).scale(0.5).mul(display);
-    camera.offset = u.rl.vec2(camera_offset);
-
-    // Update camera target.
-    const world_min = rl.getScreenToWorld2D(u.rl.vec2(m.Vec2.one().sub(threshold).scale(0.5).mul(display)), camera.*);
-    const world_max = rl.getScreenToWorld2D(u.rl.vec2(m.Vec2.one().add(threshold).scale(0.5).mul(display)), camera.*);
-    if (target.x() < world_min.x) camera.target.x = target.x();
-    if (target.y() < world_min.y) camera.target.y = target.y();
-    if (target.x() > world_max.x) camera.target.x = world_min.x + (target.x() - world_max.x);
-    if (target.y() > world_max.y) camera.target.y = world_min.y + (target.y() - world_max.y);
 }
 
 /// Reset game state.
@@ -584,46 +566,5 @@ fn handleCollision(
                 }
             }
         }
-    }
-}
-
-/// Apply gravity to all relevant entities.
-fn applyGravity(reg: *entt.Registry, force: f32) void {
-    var view = reg.view(.{ comp.Velocity, comp.Gravity }, .{});
-    var it = view.entityIterator();
-    while (it.next()) |entity| {
-        const gravity = view.get(comp.Gravity, entity);
-        const gravity_amount = force * gravity.factor;
-        var vel = view.get(comp.Velocity, entity);
-        vel.value.yMut().* += gravity_amount;
-    }
-}
-
-/// Clamp to terminal velocity.
-fn clampVelocity(reg: *entt.Registry) void {
-    var view = reg.view(.{comp.Velocity}, .{});
-    var it = view.entityIterator();
-    while (it.next()) |entity| {
-        var vel: *comp.Velocity = view.get(entity);
-        const lower = vel.terminal.scale(-1);
-        const upper = vel.terminal;
-        const vel_clamped = m.Vec2.new(
-            std.math.clamp(vel.value.x(), lower.x(), upper.x()),
-            std.math.clamp(vel.value.y(), lower.y(), upper.y()),
-        );
-        vel.value = vel_clamped;
-    }
-}
-
-/// Update entities position based on their velocity.
-fn updatePosition(reg: *entt.Registry, delta_time: f32) void {
-    var view = reg.view(.{ comp.Position, comp.Velocity }, .{});
-    var it = view.entityIterator();
-    while (it.next()) |entity| {
-        const vel = view.getConst(comp.Velocity, entity);
-        const vel_scaled = vel.value.scale(delta_time);
-        var pos = view.get(comp.Position, entity);
-        pos.x += vel_scaled.x();
-        pos.y += vel_scaled.y();
     }
 }
