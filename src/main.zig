@@ -85,14 +85,14 @@ pub fn main() !void {
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
 
-        // Physics
-        systems.applyGravity(game.reg, 980 * delta_time);
-        try handleCollision(alloc.allocator(), game.reg, delta_time, @ptrCast(&game));
-        systems.clampVelocity(game.reg);
-        systems.updatePosition(game.reg, delta_time);
-
         // AI
         updateEnemies(&game);
+
+        // Physics
+        systems.applyGravity(game.reg, 980 * delta_time);
+        systems.clampVelocity(game.reg);
+        try handleCollision(alloc.allocator(), game.reg, delta_time, @ptrCast(&game));
+        systems.updatePosition(game.reg, delta_time);
 
         // Graphics
         graphics.camera.updateCameraTarget(
