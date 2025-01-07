@@ -372,6 +372,10 @@ pub const Cooldown = struct {
 pub const Collision = struct {
     const Self = @This();
 
+    /// Collision layer.
+    layer: u32,
+    /// Collision mask.
+    mask: u32,
     /// AABB
     /// TODO: Add property for offset to entitiy's position.
     aabb_size: m.Vec2,
@@ -387,12 +391,19 @@ pub const Collision = struct {
         ?*void,
     ) void,
 
-    pub fn new(aabb_size: m.Vec2) Self {
+    pub fn new(layer: u32, mask: u32, aabb_size: m.Vec2) Self {
         return Self{
+            .layer = layer,
+            .mask = mask,
             .aabb_size = aabb_size,
             .normal = m.Vec2.zero(),
             .on_collision = null,
         };
+    }
+
+    /// Check if two entities can collide with each other.
+    pub fn canCollide(self: Collision, other: Collision) bool {
+        return (self.mask & other.layer) != 0;
     }
 
     pub fn grounded(self: *const Self) bool {

@@ -13,6 +13,14 @@ const comp = @import("components.zig");
 const systems = @import("systems.zig");
 const coll = @import("collision.zig");
 
+const CollisionLayer = struct {
+    pub const background: u32 = 0b00000001;
+    pub const map: u32 = 0b00000010;
+    pub const player: u32 = 0b10000000;
+    pub const enemies: u32 = 0b01000000;
+    pub const collectables: u32 = 0b00100000;
+};
+
 pub fn main() !void {
     var alloc = paa.init();
     defer alloc.deinit();
@@ -230,10 +238,10 @@ fn reset(game: *Game) !void {
     {
         const left = reg.create();
         reg.add(left, comp.Position.new(0, 0));
-        reg.add(left, comp.Collision.new(map_size.mul(m.Vec2.new(0, 1))));
+        reg.add(left, comp.Collision.new(CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
         const right = reg.create();
         reg.add(right, comp.Position.new(map_size.x(), 0));
-        reg.add(right, comp.Collision.new(map_size.mul(m.Vec2.new(0, 1))));
+        reg.add(right, comp.Collision.new(CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
     }
 
     // Setup tilemap.
@@ -265,7 +273,7 @@ fn reset(game: *Game) !void {
                     );
                     // Add collision for first layer only.
                     if (layer.id < 2) {
-                        reg.add(entity, comp.Collision.new(shape.getSize()));
+                        reg.add(entity, comp.Collision.new(CollisionLayer.map, 0, shape.getSize()));
                     }
                 }
 
@@ -326,7 +334,8 @@ fn reset(game: *Game) !void {
                         enemy_vel.value = m.Vec2.zero();
                         enemy_shape.rectangle.height *= 0.5;
                         enemy_collision.aabb_size = enemy_collision.aabb_size.mul(m.Vec2.new(1, 0.5));
-                        // enemy_pos.y += enemy_shape.rectangle.height;
+                        enemy_collision.mask = enemy_collision.mask & ~CollisionLayer.player;
+                        enemy_collision.layer = CollisionLayer.background;
                         enemy_visual.animation.changeAnimation(.{
                             .name = enemy_visual.animation.definition.name,
                             .speed = 0,
@@ -344,7 +353,8 @@ fn reset(game: *Game) !void {
                 }
             }
         };
-        var collision = comp.Collision.new(shape.getSize());
+        const collision_mask = CollisionLayer.map | CollisionLayer.enemies | CollisionLayer.collectables;
+        var collision = comp.Collision.new(CollisionLayer.player, collision_mask, shape.getSize());
         collision.on_collision = @ptrCast(&OnCollision.f);
         reg.add(player, collision);
         reg.add(player, comp.Gravity.new());
@@ -354,7 +364,7 @@ fn reset(game: *Game) !void {
     {
         const spawn_pos = m.Vec2.new(448, 512);
         const e = reg.create();
-        const shape = comp.Shape.rectangle(18 * 2, 10 * 2);
+        const shape = comp.Shape.rectangle(18 * 3, 10 * 3);
         entities.setRenderable(
             reg,
             e,
@@ -381,7 +391,8 @@ fn reset(game: *Game) !void {
             vel,
         );
         reg.add(e, comp.Enemy.new());
-        reg.add(e, comp.Collision.new(shape.getSize()));
+        const collision_mask = CollisionLayer.map | CollisionLayer.player;
+        reg.add(e, comp.Collision.new(CollisionLayer.enemies, collision_mask, shape.getSize()));
         reg.add(e, comp.Gravity.new());
     }
 }
@@ -390,7 +401,7 @@ pub fn spawnEnemy(game: *Game) void {
     const reg = game.reg;
     const spawn_pos = m.Vec2.new(544, 192);
     const e = reg.create();
-    const shape = comp.Shape.rectangle(15 * 2, 17 * 2);
+    const shape = comp.Shape.rectangle(15 * 3, 17 * 3);
     entities.setRenderable(
         reg,
         e,
@@ -416,7 +427,8 @@ pub fn spawnEnemy(game: *Game) void {
         vel,
     );
     reg.add(e, comp.Enemy.new());
-    reg.add(e, comp.Collision.new(shape.getSize()));
+    const collision_mask = CollisionLayer.map | CollisionLayer.player;
+    reg.add(e, comp.Collision.new(CollisionLayer.enemies, collision_mask, shape.getSize()));
     reg.add(e, comp.Gravity.new());
 }
 
@@ -488,9 +500,15 @@ fn handleCollision(
         var collider_view = reg.view(.{ comp.Position, comp.Collision }, .{});
         var collider_it = collider_view.entityIterator();
         while (collider_it.next()) |collider| {
+            // Skip collision check with self.
             if (collider == entity) continue;
+
+            // Skip collision check if entities cannot collide.
+            const collider_collision_comp = collider_view.getConst(comp.Collision, collider);
+            if (!collision_comp.canCollide(collider_collision_comp)) continue;
+
             const collider_pos = collider_view.get(comp.Position, collider).toVec2();
-            const collider_size = collider_view.get(comp.Collision, collider).aabb_size;
+            const collider_size = collider_collision_comp.aabb_size;
             // Get collider velocity, if available.
             const collider_vel = if (reg.tryGet(comp.Velocity, collider)) |collider_vel_comp|
                 collider_vel_comp.value
