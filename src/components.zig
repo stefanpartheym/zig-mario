@@ -262,6 +262,10 @@ pub const Visual = union(VisualType) {
             self.playing_animation.setSpeed(definition.speed);
             self.playing_animation.play();
         }
+
+        pub fn freeze(self: *@This()) void {
+            self.playing_animation.pause();
+        }
     },
 
     /// Creates a stub Visual component.

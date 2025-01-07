@@ -78,6 +78,9 @@ pub fn main() !void {
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
+
+        systems.updateLifetimes(game.reg, delta_time);
+
         // Input
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
@@ -97,7 +100,7 @@ pub fn main() !void {
             game.entities.getPlayerCenter(),
             m.Vec2.new(0.3, 0.3),
         );
-        systems.updateAnimations(game.reg);
+        systems.updateAnimations(game.reg, delta_time);
         systems.beginFrame(rl.getColor(0x202640ff));
         // Camera mode
         {
@@ -305,28 +308,12 @@ fn reset(game: *Game) !void {
                 result: coll.CollisionResult,
                 g: *Game,
             ) void {
-                if (r.tryGet(comp.Enemy, collider)) |enemy| {
-                    if (enemy.dead) return;
+                if (r.has(comp.Enemy, collider)) {
                     if (result.normal.y() == 1) {
-                        enemy.kill();
-                        var enemy_vel = r.get(comp.Velocity, collider);
-                        var enemy_collision = r.get(comp.Collision, collider);
-                        var enemy_shape = r.get(comp.Shape, collider);
-                        var enemy_visual = r.get(comp.Visual, collider);
-                        enemy_vel.value = m.Vec2.zero();
-                        enemy_shape.rectangle.height *= 0.5;
-                        enemy_collision.aabb_size = enemy_collision.aabb_size.mul(m.Vec2.new(1, 0.5));
-                        enemy_collision.mask = enemy_collision.mask & ~CollisionLayer.player;
-                        enemy_collision.layer = CollisionLayer.background;
-                        enemy_visual.animation.changeAnimation(.{
-                            .name = enemy_visual.animation.definition.name,
-                            .speed = 0,
-                            .padding = enemy_visual.animation.definition.padding,
-                            .flip_x = enemy_visual.animation.definition.flip_x,
-                        });
+                        killEnemy(r, collider);
+                        // Make player bounce off the top of the enemy.
                         const speed = r.get(comp.Speed, e);
                         var vel = r.get(comp.Velocity, e);
-                        // Make player bounce off the top of the enemy.
                         vel.value.yMut().* = -speed.value.y() * 0.5;
                     } else {
                         // TODO: Implement proper player death.
@@ -379,6 +366,33 @@ fn reset(game: *Game) !void {
     }
 }
 
+pub fn killEnemy(reg: *entt.Registry, entity: entt.Entity) void {
+    // Add a lifetime component to make the entity disappear
+    // after lifetime ended.
+    reg.add(entity, comp.Lifetime.new(1));
+
+    // Remove Enemy component to avoid unnecessary updates.
+    reg.remove(comp.Enemy, entity);
+
+    // Set velocity to zero.
+    var enemy_vel = reg.get(comp.Velocity, entity);
+    enemy_vel.value = m.Vec2.zero();
+
+    // Shrink enemy size to half.
+    var enemy_shape = reg.get(comp.Shape, entity);
+    enemy_shape.rectangle.height *= 0.5;
+    var enemy_collision = reg.get(comp.Collision, entity);
+    enemy_collision.aabb_size = enemy_collision.aabb_size.mul(m.Vec2.new(1, 0.5));
+
+    // Avoid further collision with player.
+    enemy_collision.mask = enemy_collision.mask & ~CollisionLayer.player;
+    enemy_collision.layer = CollisionLayer.background;
+
+    // Freeze animation.
+    var enemy_visual = reg.get(comp.Visual, entity);
+    enemy_visual.animation.freeze();
+}
+
 pub fn spawnEnemy(game: *Game) void {
     const reg = game.reg;
     const spawn_pos = m.Vec2.new(544, 192);
@@ -419,24 +433,21 @@ pub fn updateEnemies(game: *Game) void {
     var view = reg.view(.{ comp.Enemy, comp.Velocity, comp.Speed, comp.Collision }, .{});
     var it = view.entityIterator();
     while (it.next()) |entity| {
-        const enemy = view.get(comp.Enemy, entity);
-        if (!enemy.dead) {
-            const speed = view.get(comp.Speed, entity);
-            var vel = view.get(comp.Velocity, entity);
-            var visual = view.get(comp.Visual, entity);
-            const collision = view.get(comp.Collision, entity);
-            // Reverse direction if collision occurred on x axis.
-            const direction = if (collision.normal.x() == 0) std.math.sign(vel.value.x()) else collision.normal.x();
-            const direction_speed = speed.value.mul(m.Vec2.new(direction, 0));
-            const flip_x = direction < 0;
-            visual.animation.changeAnimation(.{
-                .name = visual.animation.definition.name,
-                .speed = visual.animation.definition.speed,
-                .padding = visual.animation.definition.padding,
-                .flip_x = flip_x,
-            });
-            vel.value.xMut().* = direction_speed.x();
-        }
+        const speed = view.get(comp.Speed, entity);
+        var vel = view.get(comp.Velocity, entity);
+        var visual = view.get(comp.Visual, entity);
+        const collision = view.get(comp.Collision, entity);
+        // Reverse direction if collision occurred on x axis.
+        const direction = if (collision.normal.x() == 0) std.math.sign(vel.value.x()) else collision.normal.x();
+        const direction_speed = speed.value.mul(m.Vec2.new(direction, 0));
+        const flip_x = direction < 0;
+        visual.animation.changeAnimation(.{
+            .name = visual.animation.definition.name,
+            .speed = visual.animation.definition.speed,
+            .padding = visual.animation.definition.padding,
+            .flip_x = flip_x,
+        });
+        vel.value.xMut().* = direction_speed.x();
     }
 }
 

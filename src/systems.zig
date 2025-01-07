@@ -8,8 +8,7 @@ const m = @import("math/mod.zig");
 // Misc
 //-----------------------------------------------------------------------------
 
-pub fn updateLifetimes(reg: *entt.Registry) void {
-    const delta_time = rl.getFrameTime();
+pub fn updateLifetimes(reg: *entt.Registry, delta_time: f32) void {
     var view = reg.view(.{comp.Lifetime}, .{});
     var iter = view.entityIterator();
     while (iter.next()) |entity| {
@@ -21,8 +20,7 @@ pub fn updateLifetimes(reg: *entt.Registry) void {
     }
 }
 
-pub fn updateAnimations(reg: *entt.Registry) void {
-    const delta_time = rl.getFrameTime();
+pub fn updateAnimations(reg: *entt.Registry, delta_time: f32) void {
     var view = reg.view(.{comp.Visual}, .{});
     var iter = view.entityIterator();
     while (iter.next()) |entity| {
