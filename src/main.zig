@@ -144,7 +144,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
         .flip_x = last_animation.flip_x,
     };
 
-    const accel_factor: f32 = 4;
+    const accel_factor: f32 = if (collision.grounded()) 4 else 2.5;
     const decel_factor: f32 = if (collision.grounded()) 15 else 0.5;
     const acceleration = speed.x() * accel_factor * delta_time;
 
@@ -160,7 +160,9 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     }
     // Gradually stop moving.
     else {
-        vel.value.xMut().* += -vel.value.x() * decel_factor * delta_time;
+        const vel_amount = @abs(vel.value.x());
+        const amount = @min(vel_amount, vel_amount * decel_factor * delta_time);
+        vel.value.xMut().* -= amount * std.math.sign(vel.value.x());
         if (@abs(vel.value.x()) < 0.01) vel.value.xMut().* = 0;
     }
 
