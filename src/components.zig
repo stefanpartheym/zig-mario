@@ -39,20 +39,10 @@ pub const Position = struct {
 };
 
 pub const Velocity = struct {
-    const Self = @This();
-
     /// Current velocity.
-    value: m.Vec2,
+    value: m.Vec2 = m.Vec2.zero(),
     /// Maximum velocity per frame an entity can reach.
-    terminal: m.Vec2,
-
-    pub fn new(terminal: m.Vec2) Self {
-        return Self{ .value = m.Vec2.zero(), .terminal = terminal };
-    }
-
-    pub fn default() Self {
-        return Self.new(m.Vec2.new(300, 1000));
-    }
+    terminal: m.Vec2 = m.Vec2.new(300, 1000),
 };
 
 pub const Speed = struct {

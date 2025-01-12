@@ -12,14 +12,7 @@ const entities = @import("entities.zig");
 const comp = @import("components.zig");
 const systems = @import("systems.zig");
 const coll = @import("collision.zig");
-
-const CollisionLayer = struct {
-    pub const background: u32 = 0b00000001;
-    pub const map: u32 = 0b00000010;
-    pub const player: u32 = 0b10000000;
-    pub const enemies: u32 = 0b01000000;
-    pub const collectables: u32 = 0b00100000;
-};
+const prefabs = @import("prefabs.zig");
 
 pub fn main() !void {
     var alloc = paa.init();
@@ -89,7 +82,7 @@ pub fn main() !void {
         updateEnemies(&game);
 
         // Physics
-        systems.applyGravity(game.reg, 980 * delta_time);
+        systems.applyGravity(game.reg, 1980 * delta_time);
         systems.clampVelocity(game.reg);
         try handleCollision(alloc.allocator(), game.reg, delta_time, @ptrCast(&game));
         systems.updatePosition(game.reg, delta_time);
@@ -135,7 +128,7 @@ fn handleAppInput(game: *Game) void {
     }
 
     if (rl.isKeyPressed(.key_f2)) {
-        spawnEnemy(game);
+        _ = prefabs.createEnemey2(game.reg, m.Vec2.new(544, 192), game.sprites.enemies_texture, game.sprites.enemies_atlas);
     }
 }
 
@@ -223,10 +216,10 @@ fn reset(game: *Game) !void {
     {
         const left = reg.create();
         reg.add(left, comp.Position.new(0, 0));
-        reg.add(left, comp.Collision.new(CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
+        reg.add(left, comp.Collision.new(prefabs.CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
         const right = reg.create();
         reg.add(right, comp.Position.new(map_size.x(), 0));
-        reg.add(right, comp.Collision.new(CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
+        reg.add(right, comp.Collision.new(prefabs.CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
     }
 
     // Setup tilemap.
@@ -258,7 +251,7 @@ fn reset(game: *Game) !void {
                     );
                     // Add collision for first layer only.
                     if (layer.id < 2) {
-                        reg.add(entity, comp.Collision.new(CollisionLayer.map, 0, shape.getSize()));
+                        reg.add(entity, comp.Collision.new(prefabs.CollisionLayer.map, 0, shape.getSize()));
                     }
                 }
 
@@ -272,34 +265,25 @@ fn reset(game: *Game) !void {
         }
     }
 
+    // Setup enemy colliders
+    {
+        var objects_it = tilemap.data.objects_by_id.valueIterator();
+        while (objects_it.next()) |object| {
+            if (std.mem.eql(u8, object.*.type, "enemy_collider")) {
+                const pos = m.Vec2.new(object.*.x, object.*.y);
+                const shape = comp.Shape.rectangle(object.*.width, object.*.height);
+                const entity = reg.create();
+                reg.add(entity, comp.Position.fromVec2(pos));
+                reg.add(entity, shape);
+                reg.add(entity, comp.Collision.new(prefabs.CollisionLayer.enemy_colliders, 0, shape.getSize()));
+            }
+        }
+    }
+
     // Setup new player entity.
     {
         const player_spawn_object = try tilemap.data.getObject("player_spawn");
-        const spawn_pos = m.Vec2.new(
-            @floatFromInt(player_spawn_object.x),
-            @floatFromInt(player_spawn_object.y),
-        );
-        const player = game.entities.getPlayer();
-        const pos = comp.Position.fromVec2(spawn_pos);
-        const shape = comp.Shape.rectangle(39, 48);
-        entities.setRenderable(
-            reg,
-            player,
-            pos,
-            shape,
-            comp.Visual.animation(
-                game.sprites.player_texture,
-                game.sprites.player_atlas,
-                .{ .name = "player_0", .speed = 1.5 },
-            ),
-            comp.VisualLayer.new(1),
-        );
-        entities.setMovable(
-            reg,
-            player,
-            comp.Speed{ .value = m.Vec2.new(250, 600) },
-            comp.Velocity.default(),
-        );
+        const spawn_pos = m.Vec2.new(player_spawn_object.x, player_spawn_object.y);
         const OnCollision = struct {
             pub fn f(
                 r: *entt.Registry,
@@ -316,53 +300,37 @@ fn reset(game: *Game) !void {
                         var vel = r.get(comp.Velocity, e);
                         vel.value.yMut().* = -speed.value.y() * 0.5;
                     } else {
-                        // TODO: Implement proper player death.
+                        // TODO:
+                        // Implement proper player death.
+                        // Resetting game state during collision detection will
+                        // potentially result in errors, as non-existing
+                        // entities are being processed after the callback.
                         reset(g) catch unreachable;
                     }
                 }
             }
         };
-        const collision_mask = CollisionLayer.map | CollisionLayer.enemies | CollisionLayer.collectables;
-        var collision = comp.Collision.new(CollisionLayer.player, collision_mask, shape.getSize());
-        collision.on_collision = @ptrCast(&OnCollision.f);
-        reg.add(player, collision);
-        reg.add(player, comp.Gravity.new());
+        prefabs.spawnPlayer(
+            game.reg,
+            game.entities.getPlayer(),
+            spawn_pos,
+            game.sprites.player_texture,
+            game.sprites.player_atlas,
+            @ptrCast(&OnCollision.f),
+        );
     }
 
-    // Spawn enemy.
+    // Spawn enemies.
     {
-        const spawn_pos = m.Vec2.new(448, 512);
-        const e = reg.create();
-        const shape = comp.Shape.rectangle(18 * 3, 10 * 3);
-        entities.setRenderable(
-            reg,
-            e,
-            comp.Position.fromVec2(spawn_pos),
-            shape,
-            comp.Visual.animation(
-                game.sprites.enemies_texture,
-                game.sprites.enemies_atlas,
-                .{
-                    .name = "enemies_0",
-                    .speed = 6,
-                    .padding = m.Vec4.new(0, 10, 2, 10),
-                },
-            ),
-            comp.VisualLayer.new(1),
-        );
-
-        var vel = comp.Velocity.default();
-        vel.value.xMut().* = -3000;
-        entities.setMovable(
-            reg,
-            e,
-            comp.Speed{ .value = m.Vec2.new(150, 0) },
-            vel,
-        );
-        reg.add(e, comp.Enemy.new());
-        const collision_mask = CollisionLayer.map | CollisionLayer.player;
-        reg.add(e, comp.Collision.new(CollisionLayer.enemies, collision_mask, shape.getSize()));
-        reg.add(e, comp.Gravity.new());
+        var objects_it = tilemap.data.objects_by_id.valueIterator();
+        while (objects_it.next()) |object| {
+            const spawn_pos = m.Vec2.new(object.*.x, object.*.y);
+            if (std.mem.eql(u8, object.*.type, "enemy1_spawn")) {
+                _ = prefabs.createEnemey1(game.reg, spawn_pos, game.sprites.enemies_texture, game.sprites.enemies_atlas);
+            } else if (std.mem.eql(u8, object.*.type, "enemy2_spawn")) {
+                _ = prefabs.createEnemey2(game.reg, spawn_pos, game.sprites.enemies_texture, game.sprites.enemies_atlas);
+            }
+        }
     }
 }
 
@@ -385,47 +353,12 @@ pub fn killEnemy(reg: *entt.Registry, entity: entt.Entity) void {
     enemy_collision.aabb_size = enemy_collision.aabb_size.mul(m.Vec2.new(1, 0.5));
 
     // Avoid further collision with player.
-    enemy_collision.mask = enemy_collision.mask & ~CollisionLayer.player;
-    enemy_collision.layer = CollisionLayer.background;
+    enemy_collision.mask = enemy_collision.mask & ~prefabs.CollisionLayer.player;
+    enemy_collision.layer = prefabs.CollisionLayer.background;
 
     // Freeze animation.
     var enemy_visual = reg.get(comp.Visual, entity);
     enemy_visual.animation.freeze();
-}
-
-pub fn spawnEnemy(game: *Game) void {
-    const reg = game.reg;
-    const spawn_pos = m.Vec2.new(544, 192);
-    const e = reg.create();
-    const shape = comp.Shape.rectangle(15 * 3, 17 * 3);
-    entities.setRenderable(
-        reg,
-        e,
-        comp.Position.fromVec2(spawn_pos),
-        shape,
-        comp.Visual.animation(
-            game.sprites.enemies_texture,
-            game.sprites.enemies_atlas,
-            .{
-                .name = "enemies_9",
-                .speed = 6,
-                .padding = m.Vec4.new(2, 3, 4, 3),
-            },
-        ),
-        comp.VisualLayer.new(1),
-    );
-    var vel = comp.Velocity.default();
-    vel.value.xMut().* = 3000;
-    entities.setMovable(
-        reg,
-        e,
-        comp.Speed{ .value = m.Vec2.new(200, 0) },
-        vel,
-    );
-    reg.add(e, comp.Enemy.new());
-    const collision_mask = CollisionLayer.map | CollisionLayer.player;
-    reg.add(e, comp.Collision.new(CollisionLayer.enemies, collision_mask, shape.getSize()));
-    reg.add(e, comp.Gravity.new());
 }
 
 pub fn updateEnemies(game: *Game) void {

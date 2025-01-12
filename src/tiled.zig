@@ -157,7 +157,9 @@ pub const TilemapData = struct {
     layers: []Layer,
     tilesets: []TilesetRef,
     /// Access objects of all layers by name.
-    objects: std.StringHashMap(*const Object),
+    objects_by_name: std.StringHashMap(*const Object),
+    /// Access objects of all layers by id.
+    objects_by_id: std.AutoHashMap(u32, *const Object),
 
     pub fn fromParsed(allocator: std.mem.Allocator, data: *const ParsedTilemapData) !Self {
         var self = Self{
@@ -168,7 +170,8 @@ pub const TilemapData = struct {
             .tileheight = data.tileheight,
             .layers = try allocator.alloc(Layer, data.layers.len),
             .tilesets = data.tilesets,
-            .objects = std.StringHashMap(*const Object).init(allocator),
+            .objects_by_name = std.StringHashMap(*const Object).init(allocator),
+            .objects_by_id = std.AutoHashMap(u32, *const Object).init(allocator),
         };
 
         for (data.layers, 0..) |parsed_layer, i| {
@@ -196,9 +199,12 @@ pub const TilemapData = struct {
             switch (layer_type) {
                 .objectgroup => {
                     layer.objects = parsed_layer.objects.?;
-                    // Add all objects to the object map.
+                    // Add all objects to the object maps.
                     for (layer.objects) |*object| {
-                        try self.objects.put(object.name, object);
+                        if (object.name.len > 0) {
+                            try self.objects_by_name.put(object.name, object);
+                        }
+                        try self.objects_by_id.put(object.id, object);
                     }
                 },
                 .tilelayer => layer.tiles = parsed_layer.data.?,
@@ -211,13 +217,14 @@ pub const TilemapData = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.objects.deinit();
+        self.objects_by_id.deinit();
+        self.objects_by_name.deinit();
         self.allocator.free(self.layers);
     }
 
     /// Access object of any layers by its name.
     pub fn getObject(self: *const Self, name: []const u8) !*const Object {
-        if (self.objects.get(name)) |object| {
+        if (self.objects_by_name.get(name)) |object| {
             return object;
         } else {
             return TilemapError.NoSuchObject;
@@ -270,10 +277,10 @@ const Object = struct {
     id: u32,
     type: []const u8,
     name: []const u8,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
     rotation: f32,
     visible: bool,
 };
