@@ -42,10 +42,18 @@ pub const GameEntities = struct {
 
     /// Returns the players center position.
     pub fn getPlayerCenter(self: *Self) m.Vec2 {
-        const player = self.getPlayer();
-        const pos = self.reg.get(comp.Position, player);
-        const shape = self.reg.get(comp.Shape, player);
+        const entity = self.getPlayer();
+        const pos = self.reg.get(comp.Position, entity);
+        const shape = self.reg.get(comp.Shape, entity);
         return pos.toVec2().add(shape.getSize().scale(0.5));
+    }
+
+    pub fn isPlayerDying(self: *Self) bool {
+        return self.player != null and self.reg.getConst(comp.Player, self.player.?).dead;
+    }
+
+    pub fn isPlayerDead(self: *Self) bool {
+        return self.player != null and !self.reg.valid(self.player.?);
     }
 };
 

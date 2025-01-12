@@ -11,6 +11,7 @@ pub const CollisionLayer = struct {
     pub const background: u32 = 0b00000001;
     pub const map: u32 = 0b00000010;
     pub const enemy_colliders: u32 = 0b00000100;
+    pub const deadly_colliders: u32 = 0b00001000;
     pub const player: u32 = 0b10000000;
     pub const enemies: u32 = 0b01000000;
     pub const collectables: u32 = 0b00100000;
@@ -52,12 +53,13 @@ pub fn spawnPlayer(
     );
     var collision = comp.Collision.new(
         CollisionLayer.player,
-        CollisionLayer.map | CollisionLayer.enemies | CollisionLayer.collectables,
+        CollisionLayer.map | CollisionLayer.enemies | CollisionLayer.collectables | CollisionLayer.deadly_colliders,
         shape.getSize(),
     );
     collision.on_collision = on_collision;
     reg.add(entity, collision);
     reg.add(entity, comp.Gravity.new());
+    reg.add(entity, comp.Player.new());
 }
 
 pub fn createEnemey(
@@ -82,7 +84,7 @@ pub fn createEnemey(
         comp.Speed{ .value = speed },
         comp.Velocity{ .value = m.Vec2.new(-3000, 0) },
     );
-    reg.add(e, comp.Enemy.new());
+    reg.add(e, comp.Enemy{});
     reg.add(e, comp.Collision.new(
         CollisionLayer.enemies,
         CollisionLayer.map | CollisionLayer.enemy_colliders | CollisionLayer.player,

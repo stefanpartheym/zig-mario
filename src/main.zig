@@ -80,6 +80,9 @@ pub fn main() !void {
 
         systems.updateLifetimes(game.reg, delta_time);
 
+        // Reset game, if player is dead.
+        if (game.entities.isPlayerDead()) try reset(&game);
+
         // Input
         handleAppInput(&game);
         handlePlayerInput(&game, delta_time);
@@ -148,6 +151,10 @@ fn handleAppInput(game: *Game) void {
 
 fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const reg = game.reg;
+
+    // Skip input if player is dead.
+    if (game.entities.isPlayerDying()) return;
+
     const player_entity = game.entities.getPlayer();
     const collision = reg.get(comp.Collision, player_entity);
     const speed = reg.get(comp.Speed, player_entity).value;
@@ -291,6 +298,27 @@ fn reset(game: *Game) !void {
         }
     }
 
+    // Setup player colliders.
+    // Player colliding with these will kill the player.
+    {
+        var objects_it = tilemap.data.objects_by_id.valueIterator();
+        while (objects_it.next()) |object| {
+            if (std.mem.eql(u8, object.*.type, "player_death")) {
+                const pos = m.Vec2.new(object.*.x, object.*.y);
+                const shape = comp.Shape.rectangle(object.*.width, object.*.height);
+                const entity = reg.create();
+                reg.add(entity, comp.DeadlyCollider{});
+                reg.add(entity, comp.Position.fromVec2(pos));
+                reg.add(entity, shape);
+                reg.add(entity, comp.Collision.new(
+                    prefabs.CollisionLayer.deadly_colliders,
+                    0,
+                    shape.getSize(),
+                ));
+            }
+        }
+    }
+
     // Setup new player entity.
     {
         const player_spawn_object = try tilemap.data.getObject("player_spawn");
@@ -305,21 +333,19 @@ fn reset(game: *Game) !void {
             ) void {
                 if (r.has(comp.Enemy, collider)) {
                     if (result.normal.y() == 1) {
+                        g.playSound(g.sounds.hit);
                         killEnemy(r, collider);
                         // Make player bounce off the top of the enemy.
                         const speed = r.get(comp.Speed, e);
                         var vel = r.get(comp.Velocity, e);
                         vel.value.yMut().* = -speed.value.y() * 0.5;
-                        g.playSound(g.sounds.hit);
                     } else {
                         g.playSound(g.sounds.die);
-                        // TODO:
-                        // Implement proper player death.
-                        // Resetting game state during collision detection will
-                        // potentially result in errors, as non-existing
-                        // entities are being processed after the callback.
-                        reset(g) catch unreachable;
+                        killPlayer(g);
                     }
+                } else if (r.has(comp.DeadlyCollider, collider)) {
+                    g.playSound(g.sounds.die);
+                    killPlayer(g);
                 }
             }
         };
@@ -345,6 +371,38 @@ fn reset(game: *Game) !void {
             }
         }
     }
+}
+
+pub fn killPlayer(game: *Game) void {
+    const reg = game.reg;
+    const e = game.entities.getPlayer();
+
+    // Add a lifetime component to make the player disappear.
+    reg.add(e, comp.Lifetime.new(1));
+
+    // Mark player as killed.
+    var player = reg.get(comp.Player, e);
+    player.kill();
+
+    // Change collision mask to avoid further collision.
+    var collision = reg.get(comp.Collision, e);
+    collision.mask = 0;
+    collision.layer = prefabs.CollisionLayer.background;
+
+    // Make player bounce before death and stop moving horizontally.
+    const speed = reg.get(comp.Speed, e);
+    var vel = reg.get(comp.Velocity, e);
+    vel.value = m.Vec2.new(0, -speed.value.y() * 0.5);
+
+    // Play death animation.
+    var visual = reg.get(comp.Visual, e);
+    visual.animation.changeAnimation(.{
+        .name = "player_3",
+        .loop = false,
+        .speed = 0,
+        .flip_x = visual.animation.definition.flip_x,
+        .padding = visual.animation.definition.padding,
+    });
 }
 
 pub fn killEnemy(reg: *entt.Registry, entity: entt.Entity) void {

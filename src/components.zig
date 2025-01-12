@@ -424,7 +424,7 @@ pub const Gravity = struct {
 // Game specific components
 //------------------------------------------------------------------------------
 
-pub const Enemy = struct {
+pub const Player = struct {
     const Self = @This();
 
     dead: bool,
@@ -436,4 +436,13 @@ pub const Enemy = struct {
     pub fn kill(self: *Self) void {
         self.dead = true;
     }
+};
+
+pub const Enemy = struct {
+    value: u8 = 1,
+};
+
+/// The player will die, when colliding with an entity with this component.
+pub const DeadlyCollider = struct {
+    value: u8 = 1,
 };
