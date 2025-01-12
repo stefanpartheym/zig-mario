@@ -50,13 +50,17 @@ pub const GameEntities = struct {
 };
 
 pub const GameSprites = struct {
-    const Self = @This();
-
     tileset_texture: *const rl.Texture = undefined,
     player_texture: *const rl.Texture = undefined,
     player_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
     enemies_texture: *const rl.Texture = undefined,
     enemies_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
+};
+
+pub const GameSounds = struct {
+    jump: rl.Sound = undefined,
+    hit: rl.Sound = undefined,
+    die: rl.Sound = undefined,
 };
 
 /// Contains all game related state.
@@ -68,9 +72,11 @@ pub const Game = struct {
     config: *application.ApplicationConfig,
     reg: *entt.Registry,
     debug_mode: bool,
+    audio_enabled: bool,
 
     entities: GameEntities,
     sprites: GameSprites,
+    sounds: GameSounds,
     tilemap: *tiled.Tilemap,
 
     score: u32,
@@ -89,8 +95,10 @@ pub const Game = struct {
             .config = &app.config,
             .reg = reg,
             .debug_mode = false,
+            .audio_enabled = true,
             .entities = GameEntities.new(reg),
             .sprites = GameSprites{},
+            .sounds = GameSounds{},
             .tilemap = undefined,
             .score = 0,
             .lives = 3,
@@ -129,7 +137,17 @@ pub const Game = struct {
         self.state = .gameover;
     }
 
+    pub fn playSound(self: *const Self, sound: rl.Sound) void {
+        if (self.audio_enabled) {
+            rl.playSound(sound);
+        }
+    }
+
     pub fn toggleDebugMode(self: *Self) void {
         self.debug_mode = !self.debug_mode;
+    }
+
+    pub fn toggleAudio(self: *Self) void {
+        self.audio_enabled = !self.audio_enabled;
     }
 };

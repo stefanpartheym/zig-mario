@@ -37,6 +37,7 @@ pub fn main() !void {
 
     var game = Game.new(&app, &reg);
     app.start();
+    rl.initAudioDevice();
 
     // Load sprites
     var tilemap = try tiled.Tilemap.fromFile(alloc.allocator(), "./assets/map/map.tmj");
@@ -44,11 +45,11 @@ pub fn main() !void {
     const tileset = try tilemap.getTileset(1);
     const tileset_texture = try u.rl.loadTexture(alloc.allocator(), tileset.image_path);
     defer tileset_texture.unload();
-    const player_texture = try u.rl.loadTexture(alloc.allocator(), "./assets/player.atlas.png");
+    const player_texture = rl.loadTexture("./assets/player.atlas.png");
     defer player_texture.unload();
     var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 4, 4, "player_");
     defer player_atlas.deinit();
-    const enemies_texture = try u.rl.loadTexture(alloc.allocator(), "./assets/enemies.atlas.png");
+    const enemies_texture = rl.loadTexture("./assets/enemies.atlas.png");
     defer enemies_texture.unload();
     var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
     defer enemies_atlas.deinit();
@@ -59,6 +60,11 @@ pub fn main() !void {
     game.sprites.player_atlas = &player_atlas;
     game.sprites.enemies_texture = &enemies_texture;
     game.sprites.enemies_atlas = &enemies_atlas;
+
+    // Load sounds
+    game.sounds.jump = rl.loadSound("./assets/sounds/jump.wav");
+    game.sounds.hit = rl.loadSound("./assets/sounds/hit.wav");
+    game.sounds.die = rl.loadSound("./assets/sounds/die.wav");
 
     var camera = rl.Camera2D{
         .target = .{ .x = 0, .y = 0 },
@@ -123,11 +129,15 @@ fn handleAppInput(game: *Game) void {
         game.toggleDebugMode();
     }
 
+    if (rl.isKeyPressed(.key_f2)) {
+        game.toggleAudio();
+    }
+
     if (rl.isKeyPressed(.key_r)) {
         reset(game) catch unreachable;
     }
 
-    if (rl.isKeyPressed(.key_f2)) {
+    if (rl.isKeyPressed(.key_enter)) {
         _ = prefabs.createEnemey2(game.reg, m.Vec2.new(544, 192), game.sprites.enemies_texture, game.sprites.enemies_atlas);
     }
 }
@@ -177,6 +187,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     // Jump.
     if (rl.isKeyPressed(.key_space) and vel.value.y() == 0) {
         vel.value.yMut().* = -speed.y();
+        game.playSound(game.sounds.jump);
     }
 
     // Set jump animation if player is in the air.
@@ -299,7 +310,9 @@ fn reset(game: *Game) !void {
                         const speed = r.get(comp.Speed, e);
                         var vel = r.get(comp.Velocity, e);
                         vel.value.yMut().* = -speed.value.y() * 0.5;
+                        g.playSound(g.sounds.hit);
                     } else {
+                        g.playSound(g.sounds.die);
                         // TODO:
                         // Implement proper player death.
                         // Resetting game state during collision detection will
