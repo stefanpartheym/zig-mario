@@ -35,9 +35,9 @@ pub fn main() !void {
     var reg = entt.Registry.init(alloc.allocator());
     defer reg.deinit();
 
-    var game = Game.new(&app, &reg);
+    // Start application.
+    // Must happen before loading textures and sounds.
     app.start();
-    rl.initAudioDevice();
 
     // Load sprites
     var tilemap = try tiled.Tilemap.fromFile(alloc.allocator(), "./assets/map/map.tmj");
@@ -54,6 +54,7 @@ pub fn main() !void {
     var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
     defer enemies_atlas.deinit();
 
+    var game = Game.new(&app, &reg);
     game.tilemap = &tilemap;
     game.sprites.tileset_texture = &tileset_texture;
     game.sprites.player_texture = &player_texture;
@@ -63,8 +64,11 @@ pub fn main() !void {
 
     // Load sounds
     game.sounds.jump = rl.loadSound("./assets/sounds/jump.wav");
+    defer rl.unloadSound(game.sounds.jump);
     game.sounds.hit = rl.loadSound("./assets/sounds/hit.wav");
+    defer rl.unloadSound(game.sounds.hit);
     game.sounds.die = rl.loadSound("./assets/sounds/die.wav");
+    defer rl.unloadSound(game.sounds.die);
 
     var camera = rl.Camera2D{
         .target = .{ .x = 0, .y = 0 },

@@ -33,6 +33,7 @@ pub const Application = struct {
             @intCast(display.height),
             self.config.title,
         );
+        rl.initAudioDevice();
 
         self.changeState(.running);
     }
@@ -42,6 +43,7 @@ pub const Application = struct {
     }
 
     pub fn stop(self: *Self) void {
+        rl.closeAudioDevice();
         rl.closeWindow();
         self.changeState(.stopped);
     }
