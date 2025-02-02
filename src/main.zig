@@ -89,7 +89,9 @@ pub fn main() !void {
 
         // Input
         handleAppInput(&game);
-        handlePlayerInput(&game, delta_time);
+        if (game.entities.isPlayerAlive()) {
+            handlePlayerInput(&game, delta_time);
+        }
 
         // AI
         updateEnemies(&game);
@@ -155,10 +157,6 @@ fn handleAppInput(game: *Game) void {
 
 fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const reg = game.reg;
-
-    // Skip input if player is dead.
-    if (game.entities.isPlayerDying()) return;
-
     const player_entity = game.entities.getPlayer();
     const collision = reg.get(comp.Collision, player_entity);
     const speed = reg.get(comp.Speed, player_entity).value;

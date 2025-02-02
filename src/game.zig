@@ -48,8 +48,8 @@ pub const GameEntities = struct {
         return pos.toVec2().add(shape.getSize().scale(0.5));
     }
 
-    pub fn isPlayerDying(self: *Self) bool {
-        return self.player != null and self.reg.getConst(comp.Player, self.player.?).dead;
+    pub fn isPlayerAlive(self: *Self) bool {
+        return self.player != null and !self.reg.getConst(comp.Player, self.player.?).dying;
     }
 
     pub fn isPlayerDead(self: *Self) bool {

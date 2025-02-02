@@ -427,14 +427,14 @@ pub const Gravity = struct {
 pub const Player = struct {
     const Self = @This();
 
-    dead: bool,
+    dying: bool,
 
     pub fn new() Self {
-        return Self{ .dead = false };
+        return Self{ .dying = false };
     }
 
     pub fn kill(self: *Self) void {
-        self.dead = true;
+        self.dying = true;
     }
 };
 
