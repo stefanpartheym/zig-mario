@@ -69,6 +69,7 @@ pub const GameSounds = struct {
     jump: rl.Sound = undefined,
     hit: rl.Sound = undefined,
     die: rl.Sound = undefined,
+    pickup_coin: rl.Sound = undefined,
 };
 
 /// Contains all game related state.
@@ -143,6 +144,12 @@ pub const Game = struct {
 
     pub fn gameover(self: *Self) void {
         self.state = .gameover;
+    }
+
+    pub fn updateScore(self: *Self, item: comp.Item) void {
+        if (item.type == .coin) {
+            self.score += 1;
+        }
     }
 
     pub fn playSound(self: *const Self, sound: rl.Sound) void {

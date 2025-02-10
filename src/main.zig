@@ -80,6 +80,8 @@ pub fn main() !void {
     defer rl.unloadSound(game.sounds.hit);
     game.sounds.die = rl.loadSound("./assets/sounds/die.wav");
     defer rl.unloadSound(game.sounds.die);
+    game.sounds.pickup_coin = rl.loadSound("./assets/sounds/pickup_coin.wav");
+    defer rl.unloadSound(game.sounds.pickup_coin);
 
     var camera = rl.Camera2D{
         .target = .{ .x = 0, .y = 0 },
@@ -595,7 +597,7 @@ fn handleCollisions(
                 (collider_is_enemy or collider_is_deadly or collider_is_item);
 
             if (use_entity_specific_response) {
-                if (reg.has(comp.Enemy, collision.collider)) {
+                if (collider_is_enemy) {
                     if (result.normal.y() == -1) {
                         game.playSound(game.sounds.hit);
                         killEnemy(reg, collision.collider);
@@ -606,9 +608,16 @@ fn handleCollisions(
                         game.playSound(game.sounds.die);
                         killPlayer(game);
                     }
-                } else if (reg.has(comp.DeadlyCollider, collision.collider)) {
+                } else if (collider_is_deadly) {
                     game.playSound(game.sounds.die);
                     killPlayer(game);
+                } else if (collider_is_item) {
+                    const item = reg.getConst(comp.Item, collision.collider);
+                    switch (item.type) {
+                        .coin => game.playSound(game.sounds.pickup_coin),
+                    }
+                    game.updateScore(item);
+                    reg.destroy(collision.collider);
                 }
             } else {
                 // Correct velocity to resolve collision.

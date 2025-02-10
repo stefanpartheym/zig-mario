@@ -463,4 +463,5 @@ pub const ItemType = enum {
 
 pub const Item = struct {
     type: ItemType,
+    value: u8 = 1,
 };
