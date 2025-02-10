@@ -446,3 +446,7 @@ pub const Enemy = struct {
 pub const DeadlyCollider = struct {
     value: u8 = 1,
 };
+
+pub const Coin = struct {
+    value: u8 = 1,
+};

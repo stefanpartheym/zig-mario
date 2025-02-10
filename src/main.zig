@@ -373,6 +373,17 @@ fn reset(game: *Game) !void {
             }
         }
     }
+
+    // Spawn items.
+    {
+        var objects_it = tilemap.data.objects_by_id.valueIterator();
+        while (objects_it.next()) |object| {
+            const spawn_pos = m.Vec2.new(object.*.x, object.*.y);
+            if (std.mem.eql(u8, object.*.type, "coin")) {
+                _ = prefabs.createCoin(game.reg, spawn_pos);
+            }
+        }
+    }
 }
 
 pub fn killPlayer(game: *Game) void {

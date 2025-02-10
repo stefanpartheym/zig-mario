@@ -94,6 +94,31 @@ pub fn createEnemey(
     return e;
 }
 
+pub fn createCoin(
+    reg: *entt.Registry,
+    spawn_pos: m.Vec2,
+    // texture: *const rl.Texture,
+    // atlas: *graphics.sprites.AnimatedSpriteSheet,
+) entt.Entity {
+    const e = reg.create();
+    const shape = comp.Shape.circle(5);
+    entities.setRenderable(
+        reg,
+        e,
+        comp.Position.fromVec2(spawn_pos),
+        shape,
+        comp.Visual.color(rl.Color.gold, false),
+        comp.VisualLayer.new(1),
+    );
+    reg.add(e, comp.Coin{});
+    // reg.add(e, comp.Collision.new(
+    //     CollisionLayer.collectables,
+    //     CollisionLayer.player,
+    //     shape.getSize(),
+    // ));
+    return e;
+}
+
 pub fn createEnemey1(
     reg: *entt.Registry,
     spawn_pos: m.Vec2,

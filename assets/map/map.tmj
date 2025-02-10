@@ -305,6 +305,66 @@
          "y":0
         }, 
         {
+         "color":"#8ff0a4",
+         "draworder":"topdown",
+         "id":7,
+         "name":"items",
+         "objects":[
+                {
+                 "height":0,
+                 "id":32,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":256,
+                 "y":764
+                }, 
+                {
+                 "height":0,
+                 "id":33,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":540,
+                 "y":448
+                }, 
+                {
+                 "height":0,
+                 "id":34,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":576,
+                 "y":448
+                }, 
+                {
+                 "height":0,
+                 "id":35,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":612,
+                 "y":448
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
          "color":"#99c1f1",
          "draworder":"topdown",
          "id":6,
@@ -361,11 +421,11 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":7,
- "nextobjectid":32,
+ "nextlayerid":8,
+ "nextobjectid":36,
  "orientation":"orthogonal",
  "renderorder":"right-down",
- "tiledversion":"1.11.0",
+ "tiledversion":"1.11.1",
  "tileheight":32,
  "tilesets":[
         {
