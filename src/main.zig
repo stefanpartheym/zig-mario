@@ -14,6 +14,17 @@ const systems = @import("systems.zig");
 const coll = @import("collision.zig");
 const prefabs = @import("prefabs.zig");
 
+const CollisionData = struct {
+    entity: entt.Entity,
+    entity_aabb: coll.Aabb,
+    collider: entt.Entity,
+    collider_aabb: coll.Aabb,
+    collider_vel: m.Vec2,
+    result: coll.CollisionResult,
+};
+
+const CollisionList = std.ArrayList(CollisionData);
+
 pub fn main() !void {
     var alloc = paa.init();
     defer alloc.deinit();
@@ -79,6 +90,9 @@ pub fn main() !void {
 
     try reset(&game);
 
+    var collision_list = CollisionList.init(alloc.allocator());
+    defer collision_list.deinit();
+
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
 
@@ -99,7 +113,9 @@ pub fn main() !void {
         // Physics
         systems.applyGravity(game.reg, 1980 * delta_time);
         systems.clampVelocity(game.reg);
-        try handleCollision(alloc.allocator(), game.reg, delta_time, @ptrCast(&game));
+        collision_list.clearAndFree();
+        try detectCollisions(alloc.allocator(), game.reg, delta_time, &collision_list);
+        handleCollisions(&game, delta_time, &collision_list);
         systems.updatePosition(game.reg, delta_time);
 
         // Graphics
@@ -472,19 +488,12 @@ pub fn updateEnemies(game: *Game) void {
 // Physics
 //------------------------------------------------------------------------------
 
-fn handleCollision(
+fn detectCollisions(
     allocator: std.mem.Allocator,
     reg: *entt.Registry,
     delta_time: f32,
-    collision_context: ?*void,
+    collision_list: *CollisionList,
 ) !void {
-    const BroadphaseCollision = struct {
-        entity: entt.Entity,
-        aabb: coll.Aabb,
-        vel: m.Vec2,
-        result: coll.CollisionResult,
-    };
-
     var view = reg.view(.{ comp.Position, comp.Velocity, comp.Collision }, .{});
     var it = view.entityIterator();
 
@@ -495,7 +504,8 @@ fn handleCollision(
     }
 
     it.reset();
-    // Perform collision detection and response.
+
+    // Perform collision detection.
     while (it.next()) |entity| {
         const pos = view.get(comp.Position, entity);
         var collision_comp = view.get(comp.Collision, entity);
@@ -503,7 +513,7 @@ fn handleCollision(
         const aabb = coll.Aabb.new(pos.toVec2(), collision_comp.aabb_size);
         const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision_comp.aabb_size, vel.value.scale(delta_time));
 
-        var collisions = std.ArrayList(BroadphaseCollision).init(allocator);
+        var collisions = CollisionList.init(allocator);
         defer collisions.deinit();
 
         // Perform broadphase collision detection.
@@ -537,10 +547,12 @@ fn handleCollision(
                 // Calculate time of impact based on relative velocity.
                 const result = coll.aabbToAabb(aabb, collider_aabb, relative_vel);
                 try collisions.append(.{
-                    .entity = collider,
-                    .aabb = collider_aabb,
+                    .entity = entity,
+                    .entity_aabb = aabb,
+                    .collider = collider,
+                    .collider_aabb = collider_aabb,
+                    .collider_vel = collider_vel,
                     .result = result,
-                    .vel = collider_vel,
                 });
             }
         }
@@ -548,50 +560,68 @@ fn handleCollision(
         // Sort collisions by time to resolve nearest collision first.
         const SortContext = struct {
             /// Compare function to sort collision results by time.
-            fn sort(_: void, lhs: BroadphaseCollision, rhs: BroadphaseCollision) bool {
+            fn sort(_: void, lhs: CollisionData, rhs: CollisionData) bool {
                 return lhs.result.time < rhs.result.time;
             }
         };
-        std.sort.insertion(BroadphaseCollision, collisions.items, {}, SortContext.sort);
+        std.sort.insertion(CollisionData, collisions.items, {}, SortContext.sort);
 
-        // Resolve collisions in order.
-        for (collisions.items) |collider| {
-            const relative_vel = vel.value.sub(collider.vel).scale(delta_time);
-            const result = coll.aabbToAabb(aabb, collider.aabb, relative_vel);
-            if (result.hit) {
+        // Append collisions in order.
+        for (collisions.items) |collision| {
+            try collision_list.append(collision);
+        }
+    }
+}
+
+fn handleCollisions(
+    game: *Game,
+    delta_time: f32,
+    collision_list: *CollisionList,
+) void {
+    const reg = game.reg;
+    for (collision_list.items) |collision| {
+        var vel = reg.get(comp.Velocity, collision.entity);
+        var collision_comp = reg.get(comp.Collision, collision.entity);
+        const relative_vel = vel.value.sub(collision.collider_vel).scale(delta_time);
+        const result = coll.aabbToAabb(collision.entity_aabb, collision.collider_aabb, relative_vel);
+        if (result.hit) {
+            const entity_is_player = reg.has(comp.Player, collision.entity);
+            const collider_is_enemy = reg.has(comp.Enemy, collision.collider);
+            const collider_is_deadly = reg.has(comp.DeadlyCollider, collision.collider);
+            const collider_is_item = reg.has(comp.Item, collision.collider);
+
+            const use_entity_specific_response =
+                entity_is_player and
+                (collider_is_enemy or collider_is_deadly or collider_is_item);
+
+            if (use_entity_specific_response) {
+                if (reg.has(comp.Enemy, collision.collider)) {
+                    if (result.normal.y() == -1) {
+                        game.playSound(game.sounds.hit);
+                        killEnemy(reg, collision.collider);
+                        // Make player bounce off the top of the enemy.
+                        const speed = reg.get(comp.Speed, collision.entity);
+                        vel.value.yMut().* = -speed.value.y() * 0.5;
+                    } else {
+                        game.playSound(game.sounds.die);
+                        killPlayer(game);
+                    }
+                } else if (reg.has(comp.DeadlyCollider, collision.collider)) {
+                    game.playSound(game.sounds.die);
+                    killPlayer(game);
+                }
+            } else {
+                // Correct velocity to resolve collision.
                 vel.value = coll.resolveCollision(result, vel.value);
                 // Set collision normals.
-                if (result.normal.x() != 0) {
-                    collision_comp.normal.xMut().* = result.normal.x();
-                }
-                if (result.normal.y() != 0) {
-                    collision_comp.normal.yMut().* = result.normal.y();
-                }
-                // Resolve collision for dynamic collider.
-                if (reg.tryGet(comp.Velocity, collider.entity)) |collider_vel| {
-                    collider_vel.value = coll.resolveCollision(result, collider_vel.value);
-                    var collider_collision = reg.get(comp.Collision, collider.entity);
-                    collider_collision.normal = collision_comp.normal.scale(-1);
-                }
-                if (collision_comp.on_collision) |on_collision| {
-                    on_collision(
-                        reg,
-                        entity,
-                        collider.entity,
-                        result,
-                        collision_context,
-                    );
-                }
-                const collider_collision_comp = reg.get(comp.Collision, collider.entity);
-                if (collider_collision_comp.on_collision) |on_collision| {
-                    on_collision(
-                        reg,
-                        collider.entity,
-                        entity,
-                        result,
-                        collision_context,
-                    );
-                }
+                collision_comp.setNormals(result.normal);
+                // TODO: Disabled.
+                // // Resolve collision for dynamic collider.
+                // if (reg.tryGet(comp.Velocity, collision.entity)) |collider_vel| {
+                //     collider_vel.value = coll.resolveCollision(result, collider_vel.value);
+                //     var collider_collision = reg.get(comp.Collision, collision.entity);
+                //     collider_collision.normal = collision_comp.normal.scale(-1);
+                // }
             }
         }
     }

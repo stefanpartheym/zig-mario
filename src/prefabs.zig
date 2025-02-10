@@ -110,12 +110,12 @@ pub fn createCoin(
         comp.Visual.color(rl.Color.gold, false),
         comp.VisualLayer.new(1),
     );
-    reg.add(e, comp.Coin{});
-    // reg.add(e, comp.Collision.new(
-    //     CollisionLayer.collectables,
-    //     CollisionLayer.player,
-    //     shape.getSize(),
-    // ));
+    reg.add(e, comp.Item{ .type = .coin });
+    reg.add(e, comp.Collision.new(
+        CollisionLayer.collectables,
+        CollisionLayer.player,
+        shape.getSize(),
+    ));
     return e;
 }
 

@@ -403,6 +403,16 @@ pub const Collision = struct {
     pub fn grounded(self: *const Self) bool {
         return self.normal.y() < 0;
     }
+
+    /// Set collision normals.
+    pub fn setNormals(self: *Self, normal: m.Vec2) void {
+        if (normal.x() != 0) {
+            self.normal.xMut().* = normal.x();
+        }
+        if (normal.y() != 0) {
+            self.normal.yMut().* = normal.y();
+        }
+    }
 };
 
 pub const Gravity = struct {
@@ -447,6 +457,10 @@ pub const DeadlyCollider = struct {
     value: u8 = 1,
 };
 
-pub const Coin = struct {
-    value: u8 = 1,
+pub const ItemType = enum {
+    coin,
+};
+
+pub const Item = struct {
+    type: ItemType,
 };
