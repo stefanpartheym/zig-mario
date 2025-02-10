@@ -135,8 +135,8 @@
                  "type":"enemy2_spawn",
                  "visible":true,
                  "width":0,
-                 "x":1443,
-                 "y":543
+                 "x":1440,
+                 "y":544
                 }, 
                 {
                  "height":0,
@@ -148,7 +148,7 @@
                  "visible":true,
                  "width":0,
                  "x":1696,
-                 "y":122.666666666667
+                 "y":128
                 }, 
                 {
                  "height":0,
@@ -159,8 +159,8 @@
                  "type":"enemy2_spawn",
                  "visible":true,
                  "width":0,
-                 "x":1857,
-                 "y":119.666666666667
+                 "x":1856,
+                 "y":128
                 }, 
                 {
                  "height":0,
@@ -171,8 +171,8 @@
                  "type":"enemy1_spawn",
                  "visible":true,
                  "width":0,
-                 "x":1741,
-                 "y":544.666666666667
+                 "x":1760,
+                 "y":544
                 }, 
                 {
                  "height":0,
@@ -183,7 +183,7 @@
                  "type":"enemy1_spawn",
                  "visible":true,
                  "width":0,
-                 "x":1873,
+                 "x":1888,
                  "y":544
                 }, 
                 {
@@ -195,8 +195,8 @@
                  "type":"enemy1_spawn",
                  "visible":true,
                  "width":0,
-                 "x":177.5,
-                 "y":288.8335
+                 "x":160,
+                 "y":288
                 }, 
                 {
                  "height":0,
@@ -207,8 +207,8 @@
                  "type":"enemy2_spawn",
                  "visible":true,
                  "width":0,
-                 "x":337.5,
-                 "y":285.8335
+                 "x":352,
+                 "y":288
                 }, 
                 {
                  "height":64,
@@ -312,30 +312,6 @@
          "objects":[
                 {
                  "height":0,
-                 "id":32,
-                 "name":"",
-                 "point":true,
-                 "rotation":0,
-                 "type":"coin",
-                 "visible":true,
-                 "width":0,
-                 "x":256,
-                 "y":764
-                }, 
-                {
-                 "height":0,
-                 "id":33,
-                 "name":"",
-                 "point":true,
-                 "rotation":0,
-                 "type":"coin",
-                 "visible":true,
-                 "width":0,
-                 "x":540,
-                 "y":448
-                }, 
-                {
-                 "height":0,
                  "id":34,
                  "name":"",
                  "point":true,
@@ -343,20 +319,260 @@
                  "type":"coin",
                  "visible":true,
                  "width":0,
-                 "x":576,
-                 "y":448
+                 "x":512,
+                 "y":384
                 }, 
                 {
                  "height":0,
-                 "id":35,
+                 "id":36,
                  "name":"",
                  "point":true,
                  "rotation":0,
                  "type":"coin",
                  "visible":true,
                  "width":0,
-                 "x":612,
+                 "x":192,
+                 "y":224
+                }, 
+                {
+                 "height":0,
+                 "id":37,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":224,
+                 "y":224
+                }, 
+                {
+                 "height":0,
+                 "id":38,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":256,
+                 "y":224
+                }, 
+                {
+                 "height":0,
+                 "id":39,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":288,
+                 "y":224
+                }, 
+                {
+                 "height":0,
+                 "id":40,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":320,
+                 "y":224
+                }, 
+                {
+                 "height":0,
+                 "id":41,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1696,
+                 "y":64
+                }, 
+                {
+                 "height":0,
+                 "id":42,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1728,
+                 "y":64
+                }, 
+                {
+                 "height":0,
+                 "id":43,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1760,
+                 "y":64
+                }, 
+                {
+                 "height":0,
+                 "id":44,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1792,
+                 "y":64
+                }, 
+                {
+                 "height":0,
+                 "id":45,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1824,
+                 "y":64
+                }, 
+                {
+                 "height":0,
+                 "id":46,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1856,
+                 "y":64
+                }, 
+                {
+                 "height":0,
+                 "id":47,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1248,
+                 "y":384
+                }, 
+                {
+                 "height":0,
+                 "id":48,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1504,
+                 "y":256
+                }, 
+                {
+                 "height":0,
+                 "id":49,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1664,
+                 "y":512
+                }, 
+                {
+                 "height":0,
+                 "id":50,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1600,
                  "y":448
+                }, 
+                {
+                 "height":0,
+                 "id":51,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1536,
+                 "y":512
+                }, 
+                {
+                 "height":0,
+                 "id":52,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":448,
+                 "y":320
+                }, 
+                {
+                 "height":0,
+                 "id":53,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1280,
+                 "y":320
+                }, 
+                {
+                 "height":0,
+                 "id":54,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1344,
+                 "y":256
+                }, 
+                {
+                 "height":0,
+                 "id":55,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1536,
+                 "y":192
+                }, 
+                {
+                 "height":0,
+                 "id":56,
+                 "name":"",
+                 "point":true,
+                 "rotation":0,
+                 "type":"coin",
+                 "visible":true,
+                 "width":0,
+                 "x":1600,
+                 "y":128
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -422,7 +638,7 @@
          "y":0
         }],
  "nextlayerid":8,
- "nextobjectid":36,
+ "nextobjectid":57,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.1",
