@@ -146,10 +146,8 @@ pub const Game = struct {
         self.state = .gameover;
     }
 
-    pub fn updateScore(self: *Self, item: comp.Item) void {
-        if (item.type == .coin) {
-            self.score += 1;
-        }
+    pub fn updateScore(self: *Self, value: u32) void {
+        self.score += value;
     }
 
     pub fn playSound(self: *const Self, sound: rl.Sound) void {

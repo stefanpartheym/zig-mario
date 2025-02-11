@@ -128,7 +128,6 @@ pub fn main() !void {
         );
         systems.updateAnimations(game.reg, delta_time);
         systems.beginFrame(rl.getColor(0x202640ff));
-        // Camera mode
         {
             camera.begin();
             systems.draw(game.reg);
@@ -138,7 +137,7 @@ pub fn main() !void {
             }
             camera.end();
         }
-        // Default mode
+        drawHud(&game);
         if (game.debug_mode) systems.debugDrawFps();
         systems.endFrame();
     }
@@ -234,6 +233,9 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
 /// Reset game state.
 fn reset(game: *Game) !void {
     const reg = game.reg;
+
+    // Reset score.
+    game.score = 0;
 
     // Clear entity references.
     game.entities.clear();
@@ -405,6 +407,10 @@ fn reset(game: *Game) !void {
 }
 
 pub fn killPlayer(game: *Game) void {
+    // if (game.debug_mode) {
+    //     return;
+    // }
+
     const reg = game.reg;
     const e = game.entities.getPlayer();
 
@@ -461,6 +467,16 @@ pub fn killEnemy(reg: *entt.Registry, entity: entt.Entity) void {
     // Freeze animation.
     var enemy_visual = reg.get(comp.Visual, entity);
     enemy_visual.animation.freeze();
+}
+
+pub fn pickupItem(game: *Game, entity: entt.Entity, item: comp.Item) void {
+    switch (item.type) {
+        .coin => {
+            game.playSound(game.sounds.pickup_coin);
+            game.updateScore(20);
+        },
+    }
+    game.reg.destroy(entity);
 }
 
 pub fn updateEnemies(game: *Game) void {
@@ -613,11 +629,7 @@ fn handleCollisions(
                     killPlayer(game);
                 } else if (collider_is_item) {
                     const item = reg.getConst(comp.Item, collision.collider);
-                    switch (item.type) {
-                        .coin => game.playSound(game.sounds.pickup_coin),
-                    }
-                    game.updateScore(item);
-                    reg.destroy(collision.collider);
+                    pickupItem(game, collision.collider, item);
                 }
             } else {
                 // Correct velocity to resolve collision.
@@ -634,4 +646,18 @@ fn handleCollisions(
             }
         }
     }
+}
+
+fn drawHud(game: *Game) void {
+    const alloc = game.app.allocator;
+
+    const score_str = std.fmt.allocPrintZ(alloc, "SCORE: {d}", .{game.score}) catch unreachable;
+    defer alloc.free(score_str);
+
+    const font_size = 20;
+    rl.drawText(score_str, 10, 10, font_size, rl.Color.ray_white);
+    // const text_width = 128;
+    // const display_width: i32 = @intCast(game.app.config.display.width);
+    // const pos_x = display_width - text_width - 10;
+    // rl.drawText(score_str, pos_x, 10, font_size, rl.Color.ray_white);
 }
