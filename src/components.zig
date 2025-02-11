@@ -185,6 +185,7 @@ pub const VisualType = enum {
     stub,
     color,
     sprite,
+    text,
     animation,
 };
 
@@ -232,6 +233,13 @@ pub const Visual = union(VisualType) {
         texture: *const rl.Texture,
         /// Position and dimensions of the sprite on the texture.
         rect: Rect,
+    },
+    text: struct {
+        // TODO: Add font.
+        // font: rl.Font,
+        size: i32,
+        color: rl.Color,
+        value: [:0]const u8,
     },
     animation: struct {
         texture: *const rl.Texture,
@@ -283,6 +291,20 @@ pub const Visual = union(VisualType) {
             .sprite = .{
                 .texture = texture,
                 .rect = rect,
+            },
+        };
+    }
+
+    pub fn text(
+        value: [:0]const u8,
+        size: i32,
+        text_color: rl.Color,
+    ) Self {
+        return Self{
+            .text = .{
+                .value = value,
+                .size = size,
+                .color = text_color,
             },
         };
     }
@@ -446,12 +468,12 @@ pub const EnemyType = enum {
 
 pub const Enemy = struct {
     type: EnemyType,
-    value: u8 = 1,
+    value: u8 = 0,
 };
 
 /// The player will die, when colliding with an entity with this component.
 pub const DeadlyCollider = struct {
-    value: u8 = 1,
+    value: u8 = 0,
 };
 
 pub const ItemType = enum {
@@ -460,5 +482,5 @@ pub const ItemType = enum {
 
 pub const Item = struct {
     type: ItemType,
-    value: u8 = 1,
+    value: u8 = 0,
 };

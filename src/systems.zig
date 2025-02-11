@@ -181,6 +181,7 @@ fn drawEntity(pos: comp.Position, shape: comp.Shape, visual: comp.Visual) void {
             visual.sprite.rect,
             visual.sprite.texture.*,
         ),
+        .text => drawText(visual.text.value, pos.toVec2().cast(i32), visual.text.size, visual.text.color),
         .animation => {
             var animation = visual.animation;
             const padding = animation.definition.padding;
@@ -238,6 +239,16 @@ pub fn drawSprite(target: m.Rect, source: m.Rect, texture: rl.Texture) void {
         0,
         rl.Color.white,
     );
+}
+
+/// Draw text.
+pub fn drawText(
+    text: [:0]const u8,
+    pos: m.Vec2_i32,
+    size: i32,
+    color: rl.Color,
+) void {
+    rl.drawText(text, pos.x(), pos.y(), size, color);
 }
 
 /// Generic drawing function to be used for `stub` and `color` visuals.

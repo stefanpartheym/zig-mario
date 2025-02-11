@@ -14,6 +14,16 @@ const systems = @import("systems.zig");
 const coll = @import("collision.zig");
 const prefabs = @import("prefabs.zig");
 
+const FloatingText = struct {
+    pub const score_10: [:0]const u8 = "+10";
+    pub const score_20: [:0]const u8 = "+20";
+};
+
+const ScoreInfo = struct {
+    value: u32,
+    text: [:0]const u8,
+};
+
 const CollisionData = struct {
     entity: entt.Entity,
     entity_aabb: coll.Aabb,
@@ -379,7 +389,7 @@ fn reset(game: *Game) !void {
     }
 }
 
-pub fn killPlayer(game: *Game) void {
+fn killPlayer(game: *Game) void {
     game.playSound(game.sounds.die);
 
     const reg = game.reg;
@@ -413,16 +423,19 @@ pub fn killPlayer(game: *Game) void {
     });
 }
 
-pub fn killEnemy(game: *Game, entity: entt.Entity) void {
+fn killEnemy(game: *Game, entity: entt.Entity) void {
     game.playSound(game.sounds.hit);
 
     const reg = game.reg;
 
     const enemy = reg.get(comp.Enemy, entity);
-    switch (enemy.type) {
-        .slow => game.updateScore(10),
-        .fast => game.updateScore(20),
-    }
+    const score_info = switch (enemy.type) {
+        .slow => ScoreInfo{ .text = FloatingText.score_10, .value = 10 },
+        .fast => ScoreInfo{ .text = FloatingText.score_20, .value = 20 },
+    };
+    game.updateScore(score_info.value);
+    const pos = reg.get(comp.Position, entity);
+    _ = prefabs.createFloatingText(game.reg, pos.toVec2(), score_info.text);
 
     // Add a lifetime component to make the entity disappear
     // after lifetime ended.
@@ -450,18 +463,26 @@ pub fn killEnemy(game: *Game, entity: entt.Entity) void {
     enemy_visual.animation.freeze();
 }
 
-pub fn pickupItem(game: *Game, entity: entt.Entity) void {
+fn pickupItem(game: *Game, entity: entt.Entity) void {
+    const ItemInfo = struct {
+        score: ScoreInfo,
+        sound: rl.Sound,
+    };
     const item = game.reg.getConst(comp.Item, entity);
-    switch (item.type) {
-        .coin => {
-            game.playSound(game.sounds.pickup_coin);
-            game.updateScore(20);
+    const item_info = switch (item.type) {
+        .coin => ItemInfo{
+            .score = ScoreInfo{ .text = FloatingText.score_20, .value = 20 },
+            .sound = game.sounds.pickup_coin,
         },
-    }
+    };
+    game.playSound(item_info.sound);
+    game.updateScore(item_info.score.value);
+    const pos = game.reg.getConst(comp.Position, entity);
+    _ = prefabs.createFloatingText(game.reg, pos.toVec2(), item_info.score.text);
     game.reg.destroy(entity);
 }
 
-pub fn updateEnemies(game: *Game) void {
+fn updateEnemies(game: *Game) void {
     const reg = game.reg;
     var view = reg.view(.{ comp.Enemy, comp.Velocity, comp.Speed, comp.Collision }, .{});
     var it = view.entityIterator();

@@ -17,6 +17,13 @@ pub const CollisionLayer = struct {
     pub const collectables: u32 = 0b00100000;
 };
 
+pub const VisualLayer = struct {
+    pub const player: u32 = 1;
+    pub const npcs: u32 = 1;
+    pub const items: u32 = 1;
+    pub const floating_text: u32 = 2;
+};
+
 pub fn spawnPlayer(
     reg: *entt.Registry,
     entity: entt.Entity,
@@ -36,7 +43,7 @@ pub fn spawnPlayer(
             atlas,
             .{ .name = "player_0", .speed = 1.5 },
         ),
-        comp.VisualLayer.new(1),
+        comp.VisualLayer.new(VisualLayer.player),
     );
     entities.setMovable(
         reg,
@@ -71,7 +78,7 @@ pub fn createEnemey(
         comp.Position.fromVec2(spawn_pos),
         shape,
         visual,
-        comp.VisualLayer.new(1),
+        comp.VisualLayer.new(VisualLayer.npcs),
     );
     entities.setMovable(
         reg,
@@ -103,7 +110,7 @@ pub fn createCoin(
         comp.Position.fromVec2(spawn_pos),
         shape,
         comp.Visual.color(rl.Color.gold, false),
-        comp.VisualLayer.new(1),
+        comp.VisualLayer.new(VisualLayer.items),
     );
     reg.add(e, comp.Item{ .type = .coin });
     reg.add(e, comp.Collision.new(
@@ -160,4 +167,28 @@ pub fn createEnemey2(
         ),
         m.Vec2.new(150, 0),
     );
+}
+
+pub fn createFloatingText(
+    reg: *entt.Registry,
+    spawn_pos: m.Vec2,
+    text: [:0]const u8,
+) entt.Entity {
+    const e = reg.create();
+    entities.setRenderable(
+        reg,
+        e,
+        comp.Position.fromVec2(spawn_pos),
+        comp.Shape.rectangle(0, 0),
+        comp.Visual.text(text, 14, rl.Color.green),
+        comp.VisualLayer.new(VisualLayer.floating_text),
+    );
+    entities.setMovable(
+        reg,
+        e,
+        comp.Speed{ .value = m.Vec2.zero() },
+        comp.Velocity{ .value = m.Vec2.new(0, -150) },
+    );
+    reg.add(e, comp.Lifetime.new(0.5));
+    return e;
 }
