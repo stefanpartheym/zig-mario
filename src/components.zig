@@ -376,14 +376,6 @@ pub const Collision = struct {
     /// Collision normal.
     /// Will contain the normals the entity collided with in the last frame.
     normal: m.Vec2,
-    /// Collision callback.
-    on_collision: ?*const fn (
-        *entt.Registry,
-        entt.Entity,
-        entt.Entity,
-        collision.CollisionResult,
-        ?*void,
-    ) void,
 
     pub fn new(layer: u32, mask: u32, aabb_size: m.Vec2) Self {
         return Self{
@@ -391,7 +383,6 @@ pub const Collision = struct {
             .mask = mask,
             .aabb_size = aabb_size,
             .normal = m.Vec2.zero(),
-            .on_collision = null,
         };
     }
 

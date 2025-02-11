@@ -23,13 +23,6 @@ pub fn spawnPlayer(
     spawn_pos: m.Vec2,
     texture: *const rl.Texture,
     atlas: *graphics.sprites.AnimatedSpriteSheet,
-    on_collision: ?*const fn (
-        *entt.Registry,
-        entt.Entity,
-        entt.Entity,
-        coll.CollisionResult,
-        ?*void,
-    ) void,
 ) void {
     const pos = comp.Position.fromVec2(spawn_pos);
     const shape = comp.Shape.rectangle(39, 48);
@@ -51,13 +44,14 @@ pub fn spawnPlayer(
         comp.Speed{ .value = m.Vec2.new(250, 850) },
         comp.Velocity{},
     );
-    var collision = comp.Collision.new(
-        CollisionLayer.player,
-        CollisionLayer.map | CollisionLayer.enemies | CollisionLayer.collectables | CollisionLayer.deadly_colliders,
-        shape.getSize(),
+    reg.add(
+        entity,
+        comp.Collision.new(
+            CollisionLayer.player,
+            CollisionLayer.map | CollisionLayer.enemies | CollisionLayer.collectables | CollisionLayer.deadly_colliders,
+            shape.getSize(),
+        ),
     );
-    collision.on_collision = on_collision;
-    reg.add(entity, collision);
     reg.add(entity, comp.Gravity.new());
     reg.add(entity, comp.Player.new());
 }

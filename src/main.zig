@@ -345,39 +345,12 @@ fn reset(game: *Game) !void {
     {
         const player_spawn_object = try tilemap.data.getObject("player_spawn");
         const spawn_pos = m.Vec2.new(player_spawn_object.x, player_spawn_object.y);
-        const OnCollision = struct {
-            pub fn f(
-                r: *entt.Registry,
-                e: entt.Entity,
-                collider: entt.Entity,
-                result: coll.CollisionResult,
-                g: *Game,
-            ) void {
-                if (r.has(comp.Enemy, collider)) {
-                    if (result.normal.y() == 1) {
-                        g.playSound(g.sounds.hit);
-                        killEnemy(r, collider);
-                        // Make player bounce off the top of the enemy.
-                        const speed = r.get(comp.Speed, e);
-                        var vel = r.get(comp.Velocity, e);
-                        vel.value.yMut().* = -speed.value.y() * 0.5;
-                    } else {
-                        g.playSound(g.sounds.die);
-                        killPlayer(g);
-                    }
-                } else if (r.has(comp.DeadlyCollider, collider)) {
-                    g.playSound(g.sounds.die);
-                    killPlayer(g);
-                }
-            }
-        };
         prefabs.spawnPlayer(
             game.reg,
             game.entities.getPlayer(),
             spawn_pos,
             game.sprites.player_texture,
             game.sprites.player_atlas,
-            @ptrCast(&OnCollision.f),
         );
     }
 
