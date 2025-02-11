@@ -58,6 +58,7 @@ pub fn spawnPlayer(
 
 pub fn createEnemey(
     reg: *entt.Registry,
+    enemy_type: comp.EnemyType,
     spawn_pos: m.Vec2,
     shape: comp.Shape,
     visual: comp.Visual,
@@ -78,7 +79,7 @@ pub fn createEnemey(
         comp.Speed{ .value = speed },
         comp.Velocity{ .value = m.Vec2.new(-3000, 0) },
     );
-    reg.add(e, comp.Enemy{});
+    reg.add(e, comp.Enemy{ .type = enemy_type });
     reg.add(e, comp.Collision.new(
         CollisionLayer.enemies,
         CollisionLayer.map | CollisionLayer.enemy_colliders | CollisionLayer.player,
@@ -121,6 +122,7 @@ pub fn createEnemey1(
 ) entt.Entity {
     return createEnemey(
         reg,
+        .slow,
         spawn_pos,
         comp.Shape.rectangle(18 * 3, 10 * 3),
         comp.Visual.animation(
@@ -144,6 +146,7 @@ pub fn createEnemey2(
 ) entt.Entity {
     return createEnemey(
         reg,
+        .fast,
         spawn_pos,
         comp.Shape.rectangle(15 * 3, 17 * 3),
         comp.Visual.animation(

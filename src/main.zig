@@ -380,9 +380,7 @@ fn reset(game: *Game) !void {
 }
 
 pub fn killPlayer(game: *Game) void {
-    // if (game.debug_mode) {
-    //     return;
-    // }
+    game.playSound(game.sounds.die);
 
     const reg = game.reg;
     const e = game.entities.getPlayer();
@@ -415,7 +413,17 @@ pub fn killPlayer(game: *Game) void {
     });
 }
 
-pub fn killEnemy(reg: *entt.Registry, entity: entt.Entity) void {
+pub fn killEnemy(game: *Game, entity: entt.Entity) void {
+    game.playSound(game.sounds.hit);
+
+    const reg = game.reg;
+
+    const enemy = reg.get(comp.Enemy, entity);
+    switch (enemy.type) {
+        .slow => game.updateScore(10),
+        .fast => game.updateScore(20),
+    }
+
     // Add a lifetime component to make the entity disappear
     // after lifetime ended.
     reg.add(entity, comp.Lifetime.new(1));
@@ -442,7 +450,8 @@ pub fn killEnemy(reg: *entt.Registry, entity: entt.Entity) void {
     enemy_visual.animation.freeze();
 }
 
-pub fn pickupItem(game: *Game, entity: entt.Entity, item: comp.Item) void {
+pub fn pickupItem(game: *Game, entity: entt.Entity) void {
+    const item = game.reg.getConst(comp.Item, entity);
     switch (item.type) {
         .coin => {
             game.playSound(game.sounds.pickup_coin);
@@ -588,21 +597,17 @@ fn handleCollisions(
             if (use_entity_specific_response) {
                 if (collider_is_enemy) {
                     if (result.normal.y() == -1) {
-                        game.playSound(game.sounds.hit);
-                        killEnemy(reg, collision.collider);
+                        killEnemy(game, collision.collider);
                         // Make player bounce off the top of the enemy.
                         const speed = reg.get(comp.Speed, collision.entity);
                         vel.value.yMut().* = -speed.value.y() * 0.5;
                     } else {
-                        game.playSound(game.sounds.die);
                         killPlayer(game);
                     }
                 } else if (collider_is_deadly) {
-                    game.playSound(game.sounds.die);
                     killPlayer(game);
                 } else if (collider_is_item) {
-                    const item = reg.getConst(comp.Item, collision.collider);
-                    pickupItem(game, collision.collider, item);
+                    pickupItem(game, collision.collider);
                 }
             } else {
                 // Correct velocity to resolve collision.
@@ -629,8 +634,4 @@ fn drawHud(game: *Game) void {
 
     const font_size = 20;
     rl.drawText(score_str, 10, 10, font_size, rl.Color.ray_white);
-    // const text_width = 128;
-    // const display_width: i32 = @intCast(game.app.config.display.width);
-    // const pos_x = display_width - text_width - 10;
-    // rl.drawText(score_str, pos_x, 10, font_size, rl.Color.ray_white);
 }

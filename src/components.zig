@@ -439,7 +439,13 @@ pub const Player = struct {
     }
 };
 
+pub const EnemyType = enum {
+    slow,
+    fast,
+};
+
 pub const Enemy = struct {
+    type: EnemyType,
     value: u8 = 1,
 };
 
