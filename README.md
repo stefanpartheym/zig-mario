@@ -55,9 +55,10 @@ zig build -Dtarget=wasm32-emscripten
 
 List of all assets used in this game:
 
-| File                                                  | Source/Author                                                                                           |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `enemies.atlas.png`                                   | [ROTTING PIXELS Enemy Character Pack](https://rottingpixels.itch.io/enemy-characters-pack-free)         |
-| `map/tileset.png`                                     | [ANOKOLISA Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                            |
-| `map/map.tmj`, `map/tileset.tsj`                      | [stefanpartheym](https://github.com/stefanpartheym) with [Tiled Map Editor](https://www.mapeditor.org/) |
-| `sounds/die.wav`, `sounds/hit.wav`, `sounds/jump.wav` | [stefanpartheym](https://github.com/stefanpartheym) with [rfxgen](https://raylibtech.itch.io/rfxgen)    |
+| File                                                                            | Source/Author                                                                                           |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `player.atlas.png`                                                              | [ULERINN: Old Man Character (modified)](https://ulerinn.itch.io/free-old-man)                           |
+| `enemies.atlas.png`                                                             | [ROTTING PIXELS: Enemy Character Pack ](https://rottingpixels.itch.io/enemy-characters-pack-free)       |
+| `map/tileset.png`                                                               | [ANOKOLISA: Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                           |
+| `map/map.tmj`, `map/tileset.tsj`                                                | [stefanpartheym](https://github.com/stefanpartheym) with [Tiled Map Editor](https://www.mapeditor.org/) |
+| `sounds/die.wav`, `sounds/hit.wav`, `sounds/jump.wav`, `sounds/pickup_coin.wav` | [stefanpartheym](https://github.com/stefanpartheym) with [rfxgen](https://raylibtech.itch.io/rfxgen)    |
