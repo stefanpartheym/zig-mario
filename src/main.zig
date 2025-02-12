@@ -68,7 +68,7 @@ pub fn main() !void {
     defer tileset_texture.unload();
     const player_texture = rl.loadTexture("./assets/player.atlas.png");
     defer player_texture.unload();
-    var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 4, 4, "player_");
+    var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 3, 4, "player_");
     defer player_atlas.deinit();
     const enemies_texture = rl.loadTexture("./assets/enemies.atlas.png");
     defer enemies_texture.unload();
@@ -205,12 +205,12 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     // Move left.
     if (rl.isKeyDown(.key_h) or rl.isKeyDown(.key_left)) {
         vel.value.xMut().* = std.math.clamp(vel.value.x() - acceleration, -speed.x(), speed.x());
-        next_animation = .{ .name = "player_2", .speed = 8, .flip_x = true };
+        next_animation = .{ .name = "player_1", .speed = 10, .flip_x = true };
     }
     // Move right.
     else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
         vel.value.xMut().* = std.math.clamp(vel.value.x() + acceleration, -speed.x(), speed.x());
-        next_animation = .{ .name = "player_2", .speed = 8, .flip_x = false };
+        next_animation = .{ .name = "player_1", .speed = 10, .flip_x = false };
     }
     // Gradually stop moving.
     else {
@@ -229,10 +229,11 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     // Set jump animation if player is in the air.
     if (!collision.grounded()) {
         next_animation = .{
-            .name = "player_2",
+            .name = "player_1",
             .speed = 0,
             // Inherit flip flag from current movement.
             .flip_x = next_animation.flip_x,
+            .frame = 1,
         };
     }
 
@@ -415,9 +416,9 @@ fn killPlayer(game: *Game) void {
     // Play death animation.
     var visual = reg.get(comp.Visual, e);
     visual.animation.changeAnimation(.{
-        .name = "player_3",
-        .loop = false,
+        .name = "player_2",
         .speed = 0,
+        .loop = false,
         .flip_x = visual.animation.definition.flip_x,
         .padding = visual.animation.definition.padding,
     });

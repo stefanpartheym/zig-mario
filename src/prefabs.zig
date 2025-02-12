@@ -32,7 +32,7 @@ pub fn spawnPlayer(
     atlas: *graphics.sprites.AnimatedSpriteSheet,
 ) void {
     const pos = comp.Position.fromVec2(spawn_pos);
-    const shape = comp.Shape.rectangle(39, 48);
+    const shape = comp.Shape.rectangle(33, 45);
     entities.setRenderable(
         reg,
         entity,

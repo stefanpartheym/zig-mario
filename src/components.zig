@@ -209,6 +209,8 @@ pub const Visual = union(VisualType) {
         flip_y: bool = false,
         /// Frame padding.
         padding: m.Vec4 = m.Vec4.zero(),
+        /// Start at a given frame.
+        frame: ?usize = null,
 
         pub fn eql(self: @This(), other: @This()) bool {
             return std.mem.eql(u8, self.name, other.name) and
@@ -259,6 +261,9 @@ pub const Visual = union(VisualType) {
             self.playing_animation.loop(definition.loop);
             self.playing_animation.setSpeed(definition.speed);
             self.playing_animation.play();
+            if (definition.frame) |start_frame| {
+                self.playing_animation.frame = start_frame;
+            }
         }
 
         pub fn freeze(self: *@This()) void {
