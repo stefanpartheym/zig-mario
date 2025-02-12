@@ -608,35 +608,47 @@ fn handleCollisions(
         const result = coll.aabbToAabb(collision.entity_aabb, collision.collider_aabb, relative_vel);
         if (result.hit) {
             const entity_is_player = reg.has(comp.Player, collision.entity);
+            const collider_is_player = reg.has(comp.Player, collision.collider);
+            const entity_is_enemy = reg.has(comp.Enemy, collision.entity);
             const collider_is_enemy = reg.has(comp.Enemy, collision.collider);
-            const collider_is_deadly = reg.has(comp.DeadlyCollider, collision.collider);
-            const collider_is_item = reg.has(comp.Item, collision.collider);
+
+            const collide_with_enemy = entity_is_enemy or collider_is_enemy;
+            const collide_deadly = reg.has(comp.DeadlyCollider, collision.entity) or reg.has(comp.DeadlyCollider, collision.collider);
+            const collide_item = reg.has(comp.Item, collision.entity) or reg.has(comp.Item, collision.collider);
 
             const use_entity_specific_response =
-                entity_is_player and
-                (collider_is_enemy or collider_is_deadly or collider_is_item);
+                (entity_is_player or collider_is_player) and
+                (collide_with_enemy or collide_deadly or collide_item);
 
+            // Use entity-specific collision response.
+            // This is relevant, if the player collides with an enemy, a deadly collider or an item.
             if (use_entity_specific_response) {
-                if (collider_is_enemy) {
-                    if (result.normal.y() == -1) {
-                        killEnemy(game, collision.collider);
+                if (collide_with_enemy) {
+                    const kill_enemy_normal: f32 = if (collider_is_player) 1 else -1;
+                    if (result.normal.y() == kill_enemy_normal) {
+                        const enemy_entity = if (entity_is_enemy) collision.entity else collision.collider;
+                        killEnemy(game, enemy_entity);
                         // Make player bounce off the top of the enemy.
-                        const speed = reg.get(comp.Speed, collision.entity);
-                        vel.value.yMut().* = -speed.value.y() * 0.5;
+                        const player = game.entities.getPlayer();
+                        const player_speed = reg.get(comp.Speed, player);
+                        const player_vel = reg.get(comp.Velocity, player);
+                        player_vel.value.yMut().* = -player_speed.value.y() * 0.5;
                     } else {
                         killPlayer(game);
                     }
-                } else if (collider_is_deadly) {
+                } else if (collide_deadly) {
                     killPlayer(game);
-                } else if (collider_is_item) {
+                } else if (collide_item) {
                     pickupItem(game, collision.collider);
                 }
-            } else {
+            }
+            // Use default collision response.
+            else {
                 // Correct velocity to resolve collision.
                 vel.value = coll.resolveCollision(result, vel.value);
                 // Set collision normals.
                 collision_comp.setNormals(result.normal);
-                // TODO: Disabled.
+                // TODO: Disabled, since we're not handling dynamic vs. dynamic collisions here.
                 // // Resolve collision for dynamic collider.
                 // if (reg.tryGet(comp.Velocity, collision.entity)) |collider_vel| {
                 //     collider_vel.value = coll.resolveCollision(result, collider_vel.value);
