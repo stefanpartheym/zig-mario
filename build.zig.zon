@@ -40,8 +40,8 @@
             .hash = "1220949709178b133c4d7f6ddf87fa575a9f2e9afe545a39aafdc8c89e6abbe83412",
         },
         .@"raylib-zig" = .{
-            .url = "git+https://github.com/Not-Nik/raylib-zig.git#de8c2d458516fc971f0859c4473e3381767d2471",
-            .hash = "122058d3ea6318efb819d0bffba630afd1a459fa3a99b4bfe4b680a937d5de04d2fc",
+            .url = "git+https://github.com/Not-Nik/raylib-zig.git#5004bb2316fc34a416644f3910c8c79dd08d7c63",
+            .hash = "1220223e9881fc9510eeb30fc2ee73fb49ee645bf1859cc46a92b649d35ecfd3351a",
         },
     },
     .paths = .{

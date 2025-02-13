@@ -55,11 +55,11 @@ pub fn main() !void {
     const tileset = try tilemap.getTileset(1);
     const tileset_texture = try u.rl.loadTexture(alloc.allocator(), tileset.image_path);
     defer tileset_texture.unload();
-    const player_texture = rl.loadTexture("./assets/player.atlas.png");
+    const player_texture = try rl.loadTexture("./assets/player.atlas.png");
     defer player_texture.unload();
     var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 3, 4, "player_");
     defer player_atlas.deinit();
-    const enemies_texture = rl.loadTexture("./assets/enemies.atlas.png");
+    const enemies_texture = try rl.loadTexture("./assets/enemies.atlas.png");
     defer enemies_texture.unload();
     var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
     defer enemies_atlas.deinit();
@@ -73,13 +73,13 @@ pub fn main() !void {
     game.sprites.enemies_atlas = &enemies_atlas;
 
     // Load sounds
-    game.sounds.jump = rl.loadSound("./assets/sounds/jump.wav");
+    game.sounds.jump = try rl.loadSound("./assets/sounds/jump.wav");
     defer rl.unloadSound(game.sounds.jump);
-    game.sounds.hit = rl.loadSound("./assets/sounds/hit.wav");
+    game.sounds.hit = try rl.loadSound("./assets/sounds/hit.wav");
     defer rl.unloadSound(game.sounds.hit);
-    game.sounds.die = rl.loadSound("./assets/sounds/die.wav");
+    game.sounds.die = try rl.loadSound("./assets/sounds/die.wav");
     defer rl.unloadSound(game.sounds.die);
-    game.sounds.pickup_coin = rl.loadSound("./assets/sounds/pickup_coin.wav");
+    game.sounds.pickup_coin = try rl.loadSound("./assets/sounds/pickup_coin.wav");
     defer rl.unloadSound(game.sounds.pickup_coin);
 
     var camera = rl.Camera2D{
@@ -144,25 +144,25 @@ pub fn main() !void {
 
 fn handleAppInput(game: *Game) void {
     if (rl.windowShouldClose() or
-        rl.isKeyPressed(.key_escape) or
-        rl.isKeyPressed(.key_q))
+        rl.isKeyPressed(.escape) or
+        rl.isKeyPressed(.q))
     {
         game.app.shutdown();
     }
 
-    if (rl.isKeyPressed(.key_f1)) {
+    if (rl.isKeyPressed(.f1)) {
         game.toggleDebugMode();
     }
 
-    if (rl.isKeyPressed(.key_f2)) {
+    if (rl.isKeyPressed(.f2)) {
         game.toggleAudio();
     }
 
-    if (rl.isKeyPressed(.key_r)) {
+    if (rl.isKeyPressed(.r)) {
         reset(game) catch unreachable;
     }
 
-    if (rl.isKeyPressed(.key_enter)) {
+    if (rl.isKeyPressed(.enter)) {
         _ = prefabs.createEnemey2(game.reg, m.Vec2.new(544, 192), game.sprites.enemies_texture, game.sprites.enemies_atlas);
     }
 }
@@ -192,12 +192,12 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     const acceleration = speed.x() * accel_factor * delta_time;
 
     // Move left.
-    if (rl.isKeyDown(.key_h) or rl.isKeyDown(.key_left)) {
+    if (rl.isKeyDown(.h) or rl.isKeyDown(.left)) {
         vel.value.xMut().* = std.math.clamp(vel.value.x() - acceleration, -speed.x(), speed.x());
         next_animation = .{ .name = "player_1", .speed = 10, .flip_x = true };
     }
     // Move right.
-    else if (rl.isKeyDown(.key_l) or rl.isKeyDown(.key_right)) {
+    else if (rl.isKeyDown(.l) or rl.isKeyDown(.right)) {
         vel.value.xMut().* = std.math.clamp(vel.value.x() + acceleration, -speed.x(), speed.x());
         next_animation = .{ .name = "player_1", .speed = 10, .flip_x = false };
     }
@@ -210,7 +210,7 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
     }
 
     // Jump.
-    if (rl.isKeyPressed(.key_space) and vel.value.y() == 0) {
+    if (rl.isKeyPressed(.space) and vel.value.y() == 0) {
         vel.value.yMut().* = -speed.y();
         game.playSound(game.sounds.jump);
     }

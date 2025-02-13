@@ -26,7 +26,7 @@ pub const Application = struct {
         rl.setConfigFlags(.{
             .window_highdpi = display.high_dpi,
         });
-        rl.setTraceLogLevel(rl.TraceLogLevel.log_warning);
+        rl.setTraceLogLevel(rl.TraceLogLevel.warning);
         rl.setTargetFPS(display.target_fps);
         rl.initWindow(
             @intCast(display.width),
