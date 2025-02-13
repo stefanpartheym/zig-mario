@@ -5,6 +5,12 @@ const comp = @import("components.zig");
 const m = @import("math/mod.zig");
 
 //-----------------------------------------------------------------------------
+// Collision
+//-----------------------------------------------------------------------------
+
+pub const collision = @import("systems/collision.zig");
+
+//-----------------------------------------------------------------------------
 // Misc
 //-----------------------------------------------------------------------------
 
@@ -107,10 +113,10 @@ pub fn debugDraw(reg: *entt.Registry, color: rl.Color) void {
             comp.Visual.color(color, true),
         );
         // If entity is collidable, draw the collision AABB with a slight alpha.
-        if (reg.tryGet(comp.Collision, entity)) |collision| {
+        if (reg.tryGet(comp.Collision, entity)) |collision_comp| {
             drawEntity(
                 pos,
-                comp.Shape.rectangle(collision.aabb_size.x(), collision.aabb_size.y()),
+                comp.Shape.rectangle(collision_comp.aabb_size.x(), collision_comp.aabb_size.y()),
                 comp.Visual.color(color.alpha(0.25), false),
             );
         }
