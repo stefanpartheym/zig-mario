@@ -24,16 +24,84 @@ const ScoreInfo = struct {
     text: [:0]const u8,
 };
 
-const CollisionData = struct {
+const CollisionHash = u128;
+
+pub const CollisionData = struct {
+    const Self = @This();
+
     entity: entt.Entity,
     entity_aabb: coll.Aabb,
     collider: entt.Entity,
     collider_aabb: coll.Aabb,
     collider_vel: m.Vec2,
     result: coll.CollisionResult,
+    hash: CollisionHash,
+
+    pub fn new(
+        entity: entt.Entity,
+        entity_aabb: coll.Aabb,
+        collider: entt.Entity,
+        collider_aabb: coll.Aabb,
+        collider_vel: m.Vec2,
+        result: coll.CollisionResult,
+    ) Self {
+        return .{
+            .entity = entity,
+            .entity_aabb = entity_aabb,
+            .collider = collider,
+            .collider_aabb = collider_aabb,
+            .collider_vel = collider_vel,
+            .result = result,
+            .hash = Self.entity_hash(entity, collider),
+        };
+    }
+
+    pub fn entity_hash(entity1: entt.Entity, entity2: entt.Entity) CollisionHash {
+        return if (entity1 < entity2)
+            @as(CollisionHash, @intCast(entity1)) << 64 | @as(CollisionHash, @intCast(entity2))
+        else
+            @as(CollisionHash, @intCast(entity2)) << 64 | @as(CollisionHash, @intCast(entity1));
+    }
 };
 
-const CollisionList = std.ArrayList(CollisionData);
+const CollisionList = struct {
+    const Self = @This();
+    pub const CollisionArrayList = std.ArrayList(CollisionData);
+    const CollisionMap = std.AutoHashMap(CollisionHash, void);
+
+    list: CollisionArrayList,
+    map: CollisionMap,
+
+    pub fn init(alloc: std.mem.Allocator) Self {
+        return .{
+            .list = CollisionArrayList.init(alloc),
+            .map = CollisionMap.init(alloc),
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.list.deinit();
+        self.map.deinit();
+    }
+
+    pub fn clear(self: *Self) void {
+        self.list.clearAndFree();
+        self.map.clearAndFree();
+    }
+
+    pub fn items(self: Self) []CollisionData {
+        return self.list.items;
+    }
+
+    pub fn contains(self: *Self, hash: CollisionHash) bool {
+        return self.map.contains(hash);
+    }
+
+    pub fn append(self: *Self, data: CollisionData) !void {
+        try self.list.append(data);
+        try self.map.put(data.hash, {});
+    }
+};
 
 pub fn main() !void {
     var alloc = paa.init();
@@ -125,7 +193,7 @@ pub fn main() !void {
         // Physics
         systems.applyGravity(game.reg, 1980 * delta_time);
         systems.clampVelocity(game.reg);
-        collision_list.clearAndFree();
+        collision_list.clear();
         try detectCollisions(alloc.allocator(), game.reg, delta_time, &collision_list);
         handleCollisions(&game, delta_time, &collision_list);
         systems.updatePosition(game.reg, delta_time);
@@ -535,7 +603,8 @@ fn detectCollisions(
         const aabb = coll.Aabb.new(pos.toVec2(), collision_comp.aabb_size);
         const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision_comp.aabb_size, vel.value.scale(delta_time));
 
-        var collisions = CollisionList.init(allocator);
+        // TODO: Do not reallocate the list every time. Clear the list for each iteration instead.
+        var collisions = CollisionList.CollisionArrayList.init(allocator);
         defer collisions.deinit();
 
         // Perform broadphase collision detection.
@@ -568,14 +637,14 @@ fn detectCollisions(
                 const relative_vel = vel.value.sub(collider_vel).scale(delta_time);
                 // Calculate time of impact based on relative velocity.
                 const result = coll.aabbToAabb(aabb, collider_aabb, relative_vel);
-                try collisions.append(.{
-                    .entity = entity,
-                    .entity_aabb = aabb,
-                    .collider = collider,
-                    .collider_aabb = collider_aabb,
-                    .collider_vel = collider_vel,
-                    .result = result,
-                });
+                try collisions.append(CollisionData.new(
+                    entity,
+                    aabb,
+                    collider,
+                    collider_aabb,
+                    collider_vel,
+                    result,
+                ));
             }
         }
 
@@ -590,7 +659,10 @@ fn detectCollisions(
 
         // Append collisions in order.
         for (collisions.items) |collision| {
-            try collision_list.append(collision);
+            // Skip collisions, that are already in the list.
+            if (!collision_list.contains(collision.hash)) {
+                try collision_list.append(collision);
+            }
         }
     }
 }
@@ -601,7 +673,7 @@ fn handleCollisions(
     collision_list: *CollisionList,
 ) void {
     const reg = game.reg;
-    for (collision_list.items) |collision| {
+    for (collision_list.items()) |collision| {
         var vel = reg.get(comp.Velocity, collision.entity);
         var collision_comp = reg.get(comp.Collision, collision.entity);
         const relative_vel = vel.value.sub(collision.collider_vel).scale(delta_time);
@@ -668,4 +740,26 @@ fn drawHud(game: *Game) void {
 
     const font_size = 20;
     rl.drawText(score_str, 10, 10, font_size, rl.Color.ray_white);
+}
+
+//------------------------------------------------------------------------------
+// Tests
+//------------------------------------------------------------------------------
+
+test "CollisionData.entity_hash: should generate same hash regardless of entity order" {
+    const expected_hash = 18446744073709551618;
+    const collision_hash1 = CollisionData.entity_hash(1, 2);
+    try std.testing.expectEqual(expected_hash, collision_hash1);
+    const collision_hash2 = CollisionData.entity_hash(2, 1);
+    try std.testing.expectEqual(expected_hash, collision_hash2);
+}
+
+test "CollisionData.entity_hash: should generate hash for entity ID with max u32" {
+    const entity1: entt.Entity = std.math.maxInt(u32);
+    const entity2: entt.Entity = 123;
+    const expected_hash = 2268949521070569816063;
+    const collision_hash1 = CollisionData.entity_hash(entity1, entity2);
+    try std.testing.expectEqual(expected_hash, collision_hash1);
+    const collision_hash2 = CollisionData.entity_hash(entity2, entity1);
+    try std.testing.expectEqual(expected_hash, collision_hash2);
 }
