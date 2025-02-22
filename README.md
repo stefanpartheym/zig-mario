@@ -2,6 +2,8 @@
 
 > My implementation of `Super Mario` in [zig](https://ziglang.org/) using [raylib](https://github.com/Not-Nik/raylib-zig) and an [ECS](https://github.com/prime31/zig-ecs).
 
+![Screenshot](./screenshot.png)
+
 I'm working on this game as part of [The 20 Games Challenge](https://20_games_challenge.gitlab.io/). Super Mario is [Challenge #6](https://20_games_challenge.gitlab.io/challenge/#6).
 
 ## Goals
