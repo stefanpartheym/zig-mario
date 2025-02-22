@@ -720,6 +720,7 @@ fn drawHud(game: *Game) void {
     const score_str = std.fmt.allocPrintZ(alloc, "SCORE: {d}", .{game.score}) catch unreachable;
     defer alloc.free(score_str);
 
+    const offset_x = game.config.display.width - 150;
     const font_size = 20;
-    rl.drawText(score_str, 10, 10, font_size, rl.Color.ray_white);
+    rl.drawText(score_str, @intCast(offset_x), 10, font_size, rl.Color.ray_white);
 }
