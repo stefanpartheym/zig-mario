@@ -28,7 +28,7 @@ _source: [The 20 Games Challenge #6 (Super Mario)](https://20_games_challenge.gi
 
 ## Playing the web version of the game
 
-_TODO_
+Head over to [itch.io](https://steflo.itch.io/zig-mario) to play the game in your browser.
 
 ## Running the game
 
