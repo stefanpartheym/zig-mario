@@ -53,6 +53,7 @@ pub const Application = struct {
         return self.state == .running;
     }
 
+    // TODO: Remove this. Use `rl.getWindowScaleDPI` instead.
     pub fn getDpiFactor(self: *const Self) m.Vec2 {
         const render_width: f32 = @floatFromInt(rl.getRenderWidth());
         const render_height: f32 = @floatFromInt(rl.getRenderHeight());

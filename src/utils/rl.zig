@@ -15,3 +15,8 @@ pub fn loadTexture(allocator: std.mem.Allocator, path: []const u8) !rl.Texture {
 pub fn vec2(v: m.Vec2) rl.Vector2 {
     return rl.Vector2{ .x = v.x(), .y = v.y() };
 }
+
+/// Creates a zalgebra vector from a raylib vector.
+pub fn toVec2(v: rl.Vector2) m.Vec2 {
+    return m.Vec2.new(v.x, v.y);
+}

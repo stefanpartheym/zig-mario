@@ -12,6 +12,14 @@ const collision = @import("collision.zig");
 // Common components
 //------------------------------------------------------------------------------
 
+/// Controls if an entity is being processed (updated, rendered, etc.) or not.
+/// Used to disable entities that are not visible in the current frame.
+/// This drastically improves performance. Especially when there is no need to
+/// check collisions for not visible entities.
+pub const Disabled = struct {
+    value: u8 = 1,
+};
+
 pub const Position = struct {
     const Self = @This();
 
@@ -169,6 +177,7 @@ pub const Shape = union(ShapeType) {
         }
     }
 
+    /// TODO: Rename to `toVec2`.
     pub fn getSize(self: *const Self) m.Vec2 {
         return m.Vec2.new(self.getWidth(), self.getHeight());
     }

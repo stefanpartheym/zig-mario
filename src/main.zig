@@ -99,7 +99,7 @@ pub fn main() !void {
         .target = .{ .x = 0, .y = 0 },
         .offset = .{ .x = 0, .y = 0 },
         .rotation = 0,
-        .zoom = app.getDpiFactor().x(),
+        .zoom = rl.getWindowScaleDPI().x,
     };
 
     try reset(&game);
@@ -109,6 +109,8 @@ pub fn main() !void {
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
+
+        systems.disableNotVisible(game.reg, &camera);
 
         systems.updateLifetimes(game.reg, delta_time);
 
@@ -138,7 +140,7 @@ pub fn main() !void {
             game.entities.getPlayerCenter(),
             m.Vec2.new(0.3, 0.3),
         );
-        systems.scrollParallaxLayer(game.reg, &camera);
+        systems.scrollParallaxLayer(game.reg, &camera); // TODO: Rename to `scrollParallaxLayers`
         systems.updateAnimations(game.reg, delta_time);
         systems.beginFrame(null);
         {
@@ -175,7 +177,7 @@ fn handleAppInput(game: *Game) void {
     // Toggle camera zoom (for debugging).
     if (rl.isKeyPressed(.f3)) {
         camera.zoom = if (camera.zoom == 1)
-            game.app.getDpiFactor().x()
+            rl.getWindowScaleDPI().x
         else
             1;
     }
@@ -542,7 +544,7 @@ fn pickupItem(game: *Game, entity: entt.Entity) void {
 
 fn updateEnemies(game: *Game) void {
     const reg = game.reg;
-    var view = reg.view(.{ comp.Enemy, comp.Velocity, comp.Speed, comp.Collision }, .{});
+    var view = reg.view(.{ comp.Enemy, comp.Velocity, comp.Speed, comp.Collision }, .{comp.Disabled});
     var it = view.entityIterator();
     while (it.next()) |entity| {
         const speed = view.get(comp.Speed, entity);
@@ -574,7 +576,7 @@ fn detectCollisions(
 ) !void {
     const CollisionData = systems.collision.CollisionData;
 
-    var view = reg.view(.{ comp.Position, comp.Velocity, comp.Collision }, .{});
+    var view = reg.view(.{ comp.Position, comp.Velocity, comp.Collision }, .{comp.Disabled});
     var it = view.entityIterator();
 
     // Reset collision state for all dynamic entities.
@@ -596,6 +598,10 @@ fn detectCollisions(
         const broadphase_aabb = coll.Aabb.fromMovement(pos.toVec2(), collision_comp.aabb_size, vel.value.scale(delta_time));
 
         // Perform broadphase collision detection.
+        // Do NOT exclude disabled entities for the colliders, as they would
+        // otherwise be skipped in collision detection and entities would fall
+        // through the gorund.
+        // PERF: View can be created outside of the loop.
         var collider_view = reg.view(.{ comp.Position, comp.Collision }, .{});
         var collider_it = collider_view.entityIterator();
         while (collider_it.next()) |collider| {
