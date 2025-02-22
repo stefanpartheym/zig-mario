@@ -22,6 +22,7 @@ _source: [The 20 Games Challenge #6 (Super Mario)](https://20_games_challenge.gi
 ## TODO
 
 - [ ] Make velocity consistent for different frame rates.
+- [ ] Make sure `killPlayer` is only called once when colliding with multiple enemies in one frame.
 
 ## Playing the web version of the game
 
@@ -49,16 +50,18 @@ zig build -Dtarget=wasm32-emscripten
 | `Enter`            | (_TODO_) Start/pause/resume |
 | `F1`               | Toggle debug mode           |
 | `F2`               | Toggle sounds/music         |
+| `F3`               | Toggle camera zoom          |
 | `Q`, `Escape`      | Quit game                   |
 
 ## Assets
 
 List of all assets used in this game:
 
-| File                                                                            | Source/Author                                                                                           |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `player.atlas.png`                                                              | [ULERINN: Old Man Character (modified)](https://ulerinn.itch.io/free-old-man)                           |
-| `enemies.atlas.png`                                                             | [ROTTING PIXELS: Enemy Character Pack ](https://rottingpixels.itch.io/enemy-characters-pack-free)       |
-| `map/tileset.png`                                                               | [ANOKOLISA: Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                           |
-| `map/map.tmj`, `map/tileset.tsj`                                                | [stefanpartheym](https://github.com/stefanpartheym) with [Tiled Map Editor](https://www.mapeditor.org/) |
-| `sounds/die.wav`, `sounds/hit.wav`, `sounds/jump.wav`, `sounds/pickup_coin.wav` | [stefanpartheym](https://github.com/stefanpartheym) with [rfxgen](https://raylibtech.itch.io/rfxgen)    |
+| File                                                                            | Source/Author                                                                                                     |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `player.atlas.png`                                                              | [ULERINN: Old Man Character (modified)](https://ulerinn.itch.io/free-old-man)                                     |
+| `enemies.atlas.png`                                                             | [ROTTING PIXELS: Enemy Character Pack ](https://rottingpixels.itch.io/enemy-characters-pack-free)                 |
+| `map/background_layer_*.png`                                                    | [Free Pixel Art Fantasy 2D Battlegrounds](https://craftpix.net/freebies/free-pixel-art-fantasy-2d-battlegrounds/) |
+| `map/tileset.png`                                                               | [ANOKOLISA: Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                                     |
+| `map/map.tmj`, `map/tileset.tsj`                                                | [stefanpartheym](https://github.com/stefanpartheym) with [Tiled Map Editor](https://www.mapeditor.org/)           |
+| `sounds/die.wav`, `sounds/hit.wav`, `sounds/jump.wav`, `sounds/pickup_coin.wav` | [stefanpartheym](https://github.com/stefanpartheym) with [rfxgen](https://raylibtech.itch.io/rfxgen)              |

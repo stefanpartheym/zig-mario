@@ -235,6 +235,7 @@ pub const Visual = union(VisualType) {
         texture: *const rl.Texture,
         /// Position and dimensions of the sprite on the texture.
         rect: Rect,
+        tint: rl.Color = rl.Color.white,
     },
     text: struct {
         // TODO: Add font.
@@ -332,6 +333,12 @@ pub const Visual = union(VisualType) {
             },
         };
     }
+};
+
+pub const ParallaxLayer = struct {
+    scroll_factor: m.Vec2,
+    /// Static offset.
+    offset: m.Vec2 = m.Vec2.zero(),
 };
 
 pub const Lifetime = struct {

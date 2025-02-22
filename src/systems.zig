@@ -37,6 +37,23 @@ pub fn updateAnimations(reg: *entt.Registry, delta_time: f32) void {
     }
 }
 
+pub fn scrollParallaxLayer(reg: *entt.Registry, camera: *const rl.Camera2D) void {
+    const camera_target = m.Vec2.new(camera.target.x, camera.target.y);
+    var view = reg.view(.{ comp.Position, comp.Shape, comp.ParallaxLayer }, .{});
+    var iter = view.entityIterator();
+    while (iter.next()) |entity| {
+        var pos = view.get(comp.Position, entity);
+        // const shape = view.getConst(comp.Shape, entity);
+        const parallax_layer = view.getConst(comp.ParallaxLayer, entity);
+        var offset = camera_target
+            .mul(m.Vec2.new(-1, -1))
+            .mul(parallax_layer.scroll_factor)
+            .add(parallax_layer.offset);
+        pos.x = offset.x();
+        pos.y = offset.y();
+    }
+}
+
 //-----------------------------------------------------------------------------
 // Physics
 //-----------------------------------------------------------------------------
@@ -145,31 +162,57 @@ pub fn debugDrawFps() void {
     rl.drawFPS(10, 10);
 }
 
-pub fn draw(reg: *entt.Registry) void {
+pub fn draw(reg: *entt.Registry, camera: *const rl.Camera2D) void {
     const SortContext = struct {
+        const Self = @This();
+
+        reg: *entt.Registry,
+        default_layer: comp.VisualLayer = comp.VisualLayer.new(0),
+
         /// Compare function to sort entities by their `VisualLayer`.
-        fn sort(r: *entt.Registry, a: entt.Entity, b: entt.Entity) bool {
-            const a_layer = r.tryGet(comp.VisualLayer, a);
-            const b_layer = r.tryGet(comp.VisualLayer, b);
-            if (a_layer != null and b_layer != null) {
-                return a_layer.?.value > b_layer.?.value;
-            } else if (a_layer != null) {
-                return true;
-            } else {
-                return false;
-            }
+        fn sort(self: Self, a: entt.Entity, b: entt.Entity) bool {
+            const a_layer = self.reg.tryGetConst(comp.VisualLayer, a) orelse self.default_layer;
+            const b_layer = self.reg.tryGetConst(comp.VisualLayer, b) orelse self.default_layer;
+            return a_layer.value > b_layer.value;
         }
     };
 
-    var group = reg.group(.{ comp.Position, comp.Shape, comp.Visual }, .{}, .{});
     // Sort entities based on their `VisualLayer`.
-    group.sort(entt.Entity, reg, SortContext.sort);
+    var group = reg.group(.{ comp.Position, comp.Shape, comp.Visual }, .{}, .{});
+    const context = SortContext{ .reg = reg };
+    group.sort(entt.Entity, context, SortContext.sort);
+
     var iter = group.entityIterator();
     while (iter.next()) |entity| {
-        const pos = group.getConst(comp.Position, entity);
-        const shape = group.getConst(comp.Shape, entity);
-        const visual = group.getConst(comp.Visual, entity);
-        drawEntity(pos, shape, visual);
+        const pos: comp.Position = group.getConst(comp.Position, entity);
+        const shape: comp.Shape = group.getConst(comp.Shape, entity);
+        const visual: comp.Visual = group.getConst(comp.Visual, entity);
+        if (reg.has(comp.ParallaxLayer, entity)) {
+            drawParallaxLayer(camera, pos, shape, visual);
+        } else {
+            drawEntity(pos, shape, visual);
+        }
+    }
+}
+
+fn drawParallaxLayer(
+    camera: *const rl.Camera2D,
+    pos: comp.Position,
+    shape: comp.Shape,
+    visual: comp.Visual,
+) void {
+    const screen_width: f32 = @floatFromInt(rl.getScreenWidth());
+    const reps = std.math.ceil((screen_width + shape.getWidth()) / shape.getWidth()) + 2;
+    const draw_offset = std.math.ceil(camera.target.x / shape.getWidth()) - 2;
+    for (0..@intFromFloat(reps)) |i| {
+        const index: f32 = @floatFromInt(i);
+        const offset_x = shape.getWidth() * (index + draw_offset);
+        const new_pos = pos.toVec2().add(m.Vec2.new(offset_x, 0));
+        drawEntity(
+            comp.Position.fromVec2(new_pos),
+            shape,
+            visual,
+        );
     }
 }
 
@@ -186,6 +229,7 @@ fn drawEntity(pos: comp.Position, shape: comp.Shape, visual: comp.Visual) void {
             },
             visual.sprite.rect,
             visual.sprite.texture.*,
+            visual.sprite.tint,
         ),
         .text => drawText(visual.text.value, pos.toVec2().cast(i32), visual.text.size, visual.text.color),
         .animation => {
@@ -215,6 +259,7 @@ fn drawEntity(pos: comp.Position, shape: comp.Shape, visual: comp.Visual) void {
                 },
                 source_rect,
                 animation.texture.*,
+                null,
             );
         },
     }
@@ -227,7 +272,12 @@ pub fn drawStub(pos: comp.Position, shape: comp.Shape) void {
 }
 
 /// Draw a sprite.
-pub fn drawSprite(target: m.Rect, source: m.Rect, texture: rl.Texture) void {
+pub fn drawSprite(
+    target: m.Rect,
+    source: m.Rect,
+    texture: rl.Texture,
+    tint: ?rl.Color,
+) void {
     texture.drawPro(
         .{
             .x = source.x,
@@ -243,7 +293,7 @@ pub fn drawSprite(target: m.Rect, source: m.Rect, texture: rl.Texture) void {
         },
         .{ .x = 0, .y = 0 },
         0,
-        rl.Color.white,
+        tint orelse rl.Color.white,
     );
 }
 

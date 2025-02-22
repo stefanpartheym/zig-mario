@@ -63,6 +63,9 @@ pub const GameSprites = struct {
     player_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
     enemies_texture: *const rl.Texture = undefined,
     enemies_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
+    background_layer_1_texture: *const rl.Texture = undefined,
+    background_layer_2_texture: *const rl.Texture = undefined,
+    background_layer_3_texture: *const rl.Texture = undefined,
 };
 
 pub const GameSounds = struct {

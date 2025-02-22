@@ -24,6 +24,8 @@ const ScoreInfo = struct {
     text: [:0]const u8,
 };
 
+var camera: rl.Camera2D = undefined;
+
 pub fn main() !void {
     var alloc = paa.init();
     defer alloc.deinit();
@@ -64,6 +66,14 @@ pub fn main() !void {
     var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
     defer enemies_atlas.deinit();
 
+    // Background
+    var background_layer_1 = try rl.loadTexture("./assets/map/background_layer_1.png");
+    defer background_layer_1.unload();
+    var background_layer_2 = try rl.loadTexture("./assets/map/background_layer_2.png");
+    defer background_layer_2.unload();
+    var background_layer_3 = try rl.loadTexture("./assets/map/background_layer_3.png");
+    defer background_layer_3.unload();
+
     var game = Game.new(&app, &reg);
     game.tilemap = &tilemap;
     game.sprites.tileset_texture = &tileset_texture;
@@ -71,6 +81,9 @@ pub fn main() !void {
     game.sprites.player_atlas = &player_atlas;
     game.sprites.enemies_texture = &enemies_texture;
     game.sprites.enemies_atlas = &enemies_atlas;
+    game.sprites.background_layer_1_texture = &background_layer_1;
+    game.sprites.background_layer_2_texture = &background_layer_2;
+    game.sprites.background_layer_3_texture = &background_layer_3;
 
     // Load sounds
     game.sounds.jump = try rl.loadSound("./assets/sounds/jump.wav");
@@ -82,7 +95,7 @@ pub fn main() !void {
     game.sounds.pickup_coin = try rl.loadSound("./assets/sounds/pickup_coin.wav");
     defer rl.unloadSound(game.sounds.pickup_coin);
 
-    var camera = rl.Camera2D{
+    camera = rl.Camera2D{
         .target = .{ .x = 0, .y = 0 },
         .offset = .{ .x = 0, .y = 0 },
         .rotation = 0,
@@ -125,11 +138,12 @@ pub fn main() !void {
             game.entities.getPlayerCenter(),
             m.Vec2.new(0.3, 0.3),
         );
+        systems.scrollParallaxLayer(game.reg, &camera);
         systems.updateAnimations(game.reg, delta_time);
-        systems.beginFrame(rl.getColor(0x202640ff));
+        systems.beginFrame(null);
         {
             camera.begin();
-            systems.draw(game.reg);
+            systems.draw(game.reg, &camera);
             if (game.debug_mode) {
                 systems.debugDraw(game.reg, rl.Color.yellow);
                 systems.debugDrawVelocity(game.reg, rl.Color.red, delta_time);
@@ -156,6 +170,14 @@ fn handleAppInput(game: *Game) void {
 
     if (rl.isKeyPressed(.f2)) {
         game.toggleAudio();
+    }
+
+    // Toggle camera zoom (for debugging).
+    if (rl.isKeyPressed(.f3)) {
+        camera.zoom = if (camera.zoom == 1)
+            game.app.getDpiFactor().x()
+        else
+            1;
     }
 
     if (rl.isKeyPressed(.r)) {
@@ -246,60 +268,106 @@ fn reset(game: *Game) !void {
         reg.destroy(entity);
     }
 
+    // Setup background layers.
+    {
+        const screen_size = m.Vec2.new(
+            game.config.getDisplayWidth(),
+            game.config.getDisplayHeight(),
+        );
+        const tint = rl.Color.init(61, 56, 70, 255);
+        _ = prefabs.createParallaxLayer(
+            game.reg,
+            screen_size.scale(2),
+            game.sprites.background_layer_1_texture,
+            tint,
+            comp.ParallaxLayer{ .scroll_factor = m.Vec2.new(0.1, 0) },
+            comp.VisualLayer.new(prefabs.VisualLayer.background_layer1),
+        );
+        _ = prefabs.createParallaxLayer(
+            game.reg,
+            screen_size.scale(1),
+            game.sprites.background_layer_2_texture,
+            tint,
+            comp.ParallaxLayer{
+                .scroll_factor = m.Vec2.new(0.2, 0),
+                .offset = m.Vec2.new(0, 350),
+            },
+            comp.VisualLayer.new(prefabs.VisualLayer.background_layer2),
+        );
+        _ = prefabs.createParallaxLayer(
+            game.reg,
+            screen_size.scale(1),
+            game.sprites.background_layer_3_texture,
+            tint,
+            comp.ParallaxLayer{
+                .scroll_factor = m.Vec2.new(0.3, 0),
+                .offset = m.Vec2.new(0, 600),
+            },
+            comp.VisualLayer.new(prefabs.VisualLayer.background_layer3),
+        );
+    }
+
     const tilemap = game.tilemap;
+    const debug_map_scale = 1;
+
     const map_size = m.Vec2.new(
         @floatFromInt(tilemap.data.width * tilemap.data.tilewidth),
         @floatFromInt(tilemap.data.height * tilemap.data.tileheight),
     );
+    const total_map_size = map_size.scale(debug_map_scale);
 
     // Setup map boundaries.
     {
         const left = reg.create();
         reg.add(left, comp.Position.new(0, 0));
-        reg.add(left, comp.Collision.new(prefabs.CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
+        reg.add(left, comp.Collision.new(prefabs.CollisionLayer.map, 0, total_map_size.mul(m.Vec2.new(0, 1))));
         const right = reg.create();
-        reg.add(right, comp.Position.new(map_size.x(), 0));
-        reg.add(right, comp.Collision.new(prefabs.CollisionLayer.map, 0, map_size.mul(m.Vec2.new(0, 1))));
+        reg.add(right, comp.Position.new(total_map_size.x(), 0));
+        reg.add(right, comp.Collision.new(prefabs.CollisionLayer.map, 0, total_map_size.mul(m.Vec2.new(0, 1))));
     }
 
     // Setup tilemap.
     {
         const tileset = try tilemap.getTileset(1);
-        for (tilemap.data.layers) |layer| {
-            if (!layer.visible or layer.type != .tilelayer) continue;
-            var x: usize = 0;
-            var y: usize = 0;
-            for (layer.tiles) |tile_id| {
-                // Skip empty tiles.
-                if (tile_id != 0) {
-                    const entity = reg.create();
-                    const pos = comp.Position.new(
-                        @floatFromInt(x * tilemap.data.tilewidth),
-                        @floatFromInt(y * tilemap.data.tileheight),
-                    );
-                    const shape = comp.Shape.rectangle(
-                        @floatFromInt(tilemap.data.tilewidth),
-                        @floatFromInt(tilemap.data.tileheight),
-                    );
-                    entities.setRenderable(
-                        reg,
-                        entity,
-                        pos,
-                        shape,
-                        comp.Visual.sprite(game.sprites.tileset_texture, tileset.getSpriteRect(tile_id)),
-                        null,
-                    );
-                    // Add collision for first layer only.
-                    if (layer.id < 2) {
-                        reg.add(entity, comp.Collision.new(prefabs.CollisionLayer.map, 0, shape.getSize()));
+        const shape = comp.Shape.rectangle(
+            @floatFromInt(tilemap.data.tilewidth),
+            @floatFromInt(tilemap.data.tileheight),
+        );
+        for (0..debug_map_scale) |debug_map_scale_index| {
+            for (tilemap.data.layers) |layer| {
+                if (!layer.visible or layer.type != .tilelayer) continue;
+                var x: usize = 0;
+                var y: usize = 0;
+                for (layer.tiles) |tile_id| {
+                    // Skip empty tiles.
+                    if (tile_id != 0) {
+                        const entity = reg.create();
+                        const relative_pos = m.Vec2.new(
+                            @floatFromInt(x * tilemap.data.tilewidth),
+                            @floatFromInt(y * tilemap.data.tileheight),
+                        );
+                        const debug_map_scale_factor = m.Vec2.new(@floatFromInt(debug_map_scale_index), 0);
+                        const pos = relative_pos.add(map_size.mul(debug_map_scale_factor));
+                        entities.setRenderable(
+                            reg,
+                            entity,
+                            comp.Position.fromVec2(pos),
+                            shape,
+                            comp.Visual.sprite(game.sprites.tileset_texture, tileset.getSpriteRect(tile_id)),
+                            null,
+                        );
+                        // Add collision for first layer only.
+                        if (layer.id < 2) {
+                            reg.add(entity, comp.Collision.new(prefabs.CollisionLayer.map, 0, shape.getSize()));
+                        }
                     }
-                }
 
-                // Update next tile position.
-                x += 1;
-                if (x >= tilemap.data.width) {
-                    x = 0;
-                    y += 1;
+                    // Update next tile position.
+                    x += 1;
+                    if (x >= tilemap.data.width) {
+                        x = 0;
+                        y += 1;
+                    }
                 }
             }
         }

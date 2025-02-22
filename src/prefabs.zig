@@ -18,10 +18,13 @@ pub const CollisionLayer = struct {
 };
 
 pub const VisualLayer = struct {
-    pub const player: u32 = 1;
-    pub const npcs: u32 = 1;
-    pub const items: u32 = 1;
-    pub const floating_text: u32 = 2;
+    pub const background_layer1: i32 = -3;
+    pub const background_layer2: i32 = -2;
+    pub const background_layer3: i32 = -1;
+    pub const player: i32 = 1;
+    pub const npcs: i32 = 1;
+    pub const items: i32 = 1;
+    pub const floating_text: i32 = 2;
 };
 
 pub fn spawnPlayer(
@@ -190,5 +193,37 @@ pub fn createFloatingText(
         comp.Velocity{ .value = m.Vec2.new(0, -150) },
     );
     reg.add(e, comp.Lifetime.new(0.5));
+    return e;
+}
+
+pub fn createParallaxLayer(
+    reg: *entt.Registry,
+    size: m.Vec2,
+    texture: *const rl.Texture,
+    tint: rl.Color,
+    parallax_layer: comp.ParallaxLayer,
+    visual_layer: ?comp.VisualLayer,
+) entt.Entity {
+    const e = reg.create();
+    reg.add(e, parallax_layer);
+    var visual = comp.Visual.sprite(
+        texture,
+        m.Rect.new(
+            m.Vec2.zero(),
+            m.Vec2.new(
+                @floatFromInt(texture.width),
+                @floatFromInt(texture.height),
+            ),
+        ),
+    );
+    visual.sprite.tint = tint;
+    entities.setRenderable(
+        reg,
+        e,
+        comp.Position.zero(),
+        comp.Shape.rectangle(size.x(), size.y()),
+        visual,
+        visual_layer,
+    );
     return e;
 }
