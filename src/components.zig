@@ -300,12 +300,15 @@ pub const Visual = union(VisualType) {
 
     pub fn sprite(
         texture: *const rl.Texture,
-        rect: Rect,
+        rect: ?Rect,
     ) Self {
         return Self{
             .sprite = .{
                 .texture = texture,
-                .rect = rect,
+                .rect = rect orelse Rect.new(
+                    m.Vec2.zero(),
+                    m.Vec2.new(@floatFromInt(texture.width), @floatFromInt(texture.height)),
+                ),
             },
         };
     }
