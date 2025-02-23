@@ -161,11 +161,14 @@ pub fn main() !void {
             systems.updatePosition(game.reg, delta_time);
 
             // Graphics
-            graphics.camera.updateCameraTarget(
-                &camera,
-                game.entities.getPlayerCenter(),
-                m.Vec2.new(0.3, 0.3),
-            );
+            if (game.entities.isPlayerAlive()) {
+                // Do not update camera when player died.
+                graphics.camera.updateCameraTarget(
+                    &camera,
+                    game.entities.getPlayerCenter(),
+                    m.Vec2.new(0.3, 0.3),
+                );
+            }
             systems.scrollParallaxLayers(game.reg, &camera);
             systems.updateAnimations(game.reg, delta_time);
         }
