@@ -65,6 +65,10 @@ pub fn main() !void {
     defer enemies_texture.unload();
     var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
     defer enemies_atlas.deinit();
+    const coin_texture = try rl.loadTexture("./assets/coin.atlas.png");
+    defer coin_texture.unload();
+    var coin_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 1, 8, "coin_");
+    defer coin_atlas.deinit();
 
     // Background
     var background_layer_1 = try rl.loadTexture("./assets/map/background_layer_1.png");
@@ -89,6 +93,8 @@ pub fn main() !void {
     game.sprites.player_atlas = &player_atlas;
     game.sprites.enemies_texture = &enemies_texture;
     game.sprites.enemies_atlas = &enemies_atlas;
+    game.sprites.item_coin_texture = &coin_texture;
+    game.sprites.item_coin_atlas = &coin_atlas;
     game.sprites.background_layer_1_texture = &background_layer_1;
     game.sprites.background_layer_2_texture = &background_layer_2;
     game.sprites.background_layer_3_texture = &background_layer_3;
@@ -484,7 +490,7 @@ fn reset(game: *Game) !void {
         while (objects_it.next()) |object| {
             const spawn_pos = m.Vec2.new(object.*.x, object.*.y);
             if (std.mem.eql(u8, object.*.type, "coin")) {
-                _ = prefabs.createCoin(game.reg, spawn_pos);
+                _ = prefabs.createCoin(game.reg, spawn_pos, game.sprites.item_coin_texture, game.sprites.item_coin_atlas);
             }
         }
     }

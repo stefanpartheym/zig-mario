@@ -102,17 +102,17 @@ pub fn createEnemey(
 pub fn createCoin(
     reg: *entt.Registry,
     spawn_pos: m.Vec2,
-    // texture: *const rl.Texture,
-    // atlas: *graphics.sprites.AnimatedSpriteSheet,
+    texture: *const rl.Texture,
+    atlas: *graphics.sprites.AnimatedSpriteSheet,
 ) entt.Entity {
     const e = reg.create();
-    const shape = comp.Shape.circle(5);
+    const shape = comp.Shape.rectangle(18, 18);
     entities.setRenderable(
         reg,
         e,
         comp.Position.fromVec2(spawn_pos),
         shape,
-        comp.Visual.color(rl.Color.gold, false),
+        comp.Visual.animation(texture, atlas, .{ .name = "coin_0", .speed = 8 }),
         comp.VisualLayer.new(VisualLayer.items),
     );
     reg.add(e, comp.Item{ .type = .coin });
