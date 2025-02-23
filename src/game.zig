@@ -165,6 +165,8 @@ pub const Game = struct {
         if (self.lives == 0) {
             gameover(self);
         }
+        // TODO: Score currently reset, but should be kept in the future.
+        self.score = 0;
     }
 
     pub fn win(self: *Self) void {
