@@ -126,7 +126,11 @@ pub fn main() !void {
 
         // Loop soundtrack.
         if (!rl.isSoundPlaying(game.sounds.soundtrack)) {
-            rl.playSound(game.sounds.soundtrack);
+            game.playSound(game.sounds.soundtrack);
+        }
+        // Pause soundtrack, if audio is disabled.
+        else if (!game.audio_enabled) {
+            rl.pauseSound(game.sounds.soundtrack);
         }
 
         // App input
