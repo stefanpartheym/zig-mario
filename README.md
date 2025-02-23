@@ -24,7 +24,6 @@ _source: [The 20 Games Challenge #6 (Super Mario)](https://20_games_challenge.gi
 ## TODO
 
 - [ ] Make velocity consistent for different frame rates.
-- [ ] Make sure `killPlayer` is only called once when colliding with multiple enemies in one frame.
 
 ## Playing the web version of the game
 

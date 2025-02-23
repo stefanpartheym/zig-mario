@@ -457,6 +457,8 @@ fn reset(game: *Game) !void {
 }
 
 fn killPlayer(game: *Game) void {
+    if (!game.entities.isPlayerAlive()) @panic("Player is already dead: Unable to kill player");
+
     game.playSound(game.sounds.die);
 
     const reg = game.reg;
@@ -689,7 +691,11 @@ fn handleCollisions(
 
             // Use entity-specific collision response.
             // This is relevant, if the player collides with an enemy, a deadly collider or an item.
-            if (use_entity_specific_response) {
+            // Make sure the player is still alive when handling the collision.
+            // If the player is already dead, calling `killPlayer()` again will
+            // crash the game, because adding/removing certain components will
+            // fail.
+            if (use_entity_specific_response and game.entities.isPlayerAlive()) {
                 if (collide_with_enemy) {
                     const kill_enemy_normal: f32 = if (collider_is_player) 1 else -1;
                     if (result.normal.y() == kill_enemy_normal) {
