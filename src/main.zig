@@ -97,8 +97,8 @@ pub fn main() !void {
     game.sprites.ui_coin = &ui_coin;
 
     // Load sounds
-    game.sounds.soundtrack = try rl.loadSound("./assets/soundtrack.wav");
-    defer rl.unloadSound(game.sounds.soundtrack);
+    game.sounds.soundtrack = try rl.loadMusicStream("./assets/soundtrack.wav");
+    defer rl.unloadMusicStream(game.sounds.soundtrack);
     game.sounds.jump = try rl.loadSound("./assets/sounds/jump.wav");
     defer rl.unloadSound(game.sounds.jump);
     game.sounds.hit = try rl.loadSound("./assets/sounds/hit.wav");
@@ -125,12 +125,15 @@ pub fn main() !void {
         const delta_time = rl.getFrameTime();
 
         // Loop soundtrack.
-        if (!rl.isSoundPlaying(game.sounds.soundtrack)) {
-            game.playSound(game.sounds.soundtrack);
+        if (game.audio_enabled) {
+            if (!rl.isMusicStreamPlaying(game.sounds.soundtrack)) {
+                rl.playMusicStream(game.sounds.soundtrack);
+            }
+            rl.updateMusicStream(game.sounds.soundtrack);
         }
         // Pause soundtrack, if audio is disabled.
-        else if (!game.audio_enabled) {
-            rl.pauseSound(game.sounds.soundtrack);
+        else {
+            rl.pauseMusicStream(game.sounds.soundtrack);
         }
 
         // App input

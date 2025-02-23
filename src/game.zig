@@ -76,7 +76,7 @@ pub const GameSprites = struct {
 };
 
 pub const GameSounds = struct {
-    soundtrack: rl.Sound = undefined,
+    soundtrack: rl.Music = undefined,
     jump: rl.Sound = undefined,
     hit: rl.Sound = undefined,
     die: rl.Sound = undefined,
