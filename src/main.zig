@@ -86,6 +86,8 @@ pub fn main() !void {
     game.sprites.background_layer_3_texture = &background_layer_3;
 
     // Load sounds
+    game.sounds.soundtrack = try rl.loadSound("./assets/soundtrack.wav");
+    defer rl.unloadSound(game.sounds.soundtrack);
     game.sounds.jump = try rl.loadSound("./assets/sounds/jump.wav");
     defer rl.unloadSound(game.sounds.jump);
     game.sounds.hit = try rl.loadSound("./assets/sounds/hit.wav");
@@ -109,6 +111,11 @@ pub fn main() !void {
 
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
+
+        // Loop soundtrack.
+        if (!rl.isSoundPlaying(game.sounds.soundtrack)) {
+            rl.playSound(game.sounds.soundtrack);
+        }
 
         systems.disableNotVisible(game.reg, &camera);
 
