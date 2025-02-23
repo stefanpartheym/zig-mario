@@ -147,7 +147,7 @@ pub fn main() !void {
             game.entities.getPlayerCenter(),
             m.Vec2.new(0.3, 0.3),
         );
-        systems.scrollParallaxLayer(game.reg, &camera); // TODO: Rename to `scrollParallaxLayers`
+        systems.scrollParallaxLayers(game.reg, &camera);
         systems.updateAnimations(game.reg, delta_time);
         systems.beginFrame(null);
         {

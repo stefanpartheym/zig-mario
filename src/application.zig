@@ -48,19 +48,8 @@ pub const Application = struct {
         self.changeState(.stopped);
     }
 
-    /// TODO: Rename to `running`.
     pub fn isRunning(self: *const Self) bool {
         return self.state == .running;
-    }
-
-    // TODO: Remove this. Use `rl.getWindowScaleDPI` instead.
-    pub fn getDpiFactor(self: *const Self) m.Vec2 {
-        const render_width: f32 = @floatFromInt(rl.getRenderWidth());
-        const render_height: f32 = @floatFromInt(rl.getRenderHeight());
-        return m.Vec2.new(
-            render_width / self.config.getDisplayWidth(),
-            render_height / self.config.getDisplayHeight(),
-        );
     }
 
     fn changeState(self: *Self, newState: ApplicationState) void {

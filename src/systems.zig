@@ -84,7 +84,7 @@ pub fn updateAnimations(reg: *entt.Registry, delta_time: f32) void {
     }
 }
 
-pub fn scrollParallaxLayer(reg: *entt.Registry, camera: *const rl.Camera2D) void {
+pub fn scrollParallaxLayers(reg: *entt.Registry, camera: *const rl.Camera2D) void {
     const camera_target = m.Vec2.new(camera.target.x, camera.target.y);
     var view = reg.view(.{ comp.Position, comp.Shape, comp.ParallaxLayer }, .{});
     var iter = view.entityIterator();
