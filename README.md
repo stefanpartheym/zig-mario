@@ -43,16 +43,16 @@ zig build -Dtarget=wasm32-emscripten
 
 ## Controls
 
-| Key                | Description                 |
-| ------------------ | --------------------------- |
-| `H`, `Arrow Left`  | Move left                   |
-| `L`, `Arrow Right` | Move right                  |
-| `Space`            | Jump                        |
-| `Enter`            | (_TODO_) Start/pause/resume |
-| `F1`               | Toggle debug mode           |
-| `F2`               | Toggle sounds/music         |
-| `F3`               | Toggle camera zoom          |
-| `Q`, `Escape`      | Quit game                   |
+| Key                | Description         |
+| ------------------ | ------------------- |
+| `H`, `Arrow Left`  | Move left           |
+| `L`, `Arrow Right` | Move right          |
+| `Space`            | Jump                |
+| `Enter`            | Start/pause/resume  |
+| `F1`               | Toggle debug mode   |
+| `F2`               | Toggle sounds/music |
+| `F3`               | Toggle camera zoom  |
+| `Q`, `Escape`      | Quit game           |
 
 ## Assets
 
@@ -62,6 +62,7 @@ List of all assets used in this game:
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `player.atlas.png`                                                              | [ULERINN: Old Man Character (modified)](https://ulerinn.itch.io/free-old-man)                                                     |
 | `enemies.atlas.png`                                                             | [ROTTING PIXELS: Enemy Character Pack ](https://rottingpixels.itch.io/enemy-characters-pack-free)                                 |
+| `ui/*.png`                                                                      | [AR: RetroPixel Icons V1 (9x9)](https://opengameart.org/content/retropixel-icons-v1-9x9)                                          |
 | `map/background_layer_*.png`                                                    | [Free Pixel Art Fantasy 2D Battlegrounds](https://craftpix.net/freebies/free-pixel-art-fantasy-2d-battlegrounds/)                 |
 | `map/tileset.png`                                                               | [ANOKOLISA: Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                                                     |
 | `map/map.tmj`, `map/tileset.tsj`                                                | [stefanpartheym](https://github.com/stefanpartheym) with [Tiled Map Editor](https://www.mapeditor.org/)                           |
