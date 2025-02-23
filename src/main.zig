@@ -314,7 +314,7 @@ fn reset(game: *Game) !void {
             screen_size.scale(2),
             game.sprites.background_layer_1_texture,
             tint,
-            comp.ParallaxLayer{ .scroll_factor = m.Vec2.new(0.1, 0) },
+            comp.ParallaxLayer{ .scroll_factor = m.Vec2.new(0.02, 0) },
             comp.VisualLayer.new(prefabs.VisualLayer.background_layer1),
         );
         _ = prefabs.createParallaxLayer(
@@ -323,7 +323,7 @@ fn reset(game: *Game) !void {
             game.sprites.background_layer_2_texture,
             tint,
             comp.ParallaxLayer{
-                .scroll_factor = m.Vec2.new(0.2, 0),
+                .scroll_factor = m.Vec2.new(0.05, 0),
                 .offset = m.Vec2.new(0, 350),
             },
             comp.VisualLayer.new(prefabs.VisualLayer.background_layer2),
@@ -334,7 +334,7 @@ fn reset(game: *Game) !void {
             game.sprites.background_layer_3_texture,
             tint,
             comp.ParallaxLayer{
-                .scroll_factor = m.Vec2.new(0.3, 0),
+                .scroll_factor = m.Vec2.new(0.1, 0),
                 .offset = m.Vec2.new(0, 600),
             },
             comp.VisualLayer.new(prefabs.VisualLayer.background_layer3),
