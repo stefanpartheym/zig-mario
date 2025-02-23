@@ -177,7 +177,7 @@ pub fn main() !void {
         }
 
         // Render
-        systems.beginFrame(null);
+        systems.beginFrame(rl.Color.fromInt(0x2a252000));
         {
             camera.begin();
             systems.draw(game.reg, &camera);
@@ -320,7 +320,10 @@ fn reset(game: *Game) !void {
             screen_size.scale(2),
             game.sprites.background_layer_1_texture,
             tint,
-            comp.ParallaxLayer{ .scroll_factor = m.Vec2.new(0.02, 0) },
+            comp.ParallaxLayer{
+                .scroll_factor = m.Vec2.new(0.02, 0),
+                .offset = m.Vec2.new(0, -200),
+            },
             comp.VisualLayer.new(prefabs.VisualLayer.background_layer1),
         );
         _ = prefabs.createParallaxLayer(
