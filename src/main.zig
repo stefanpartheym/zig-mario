@@ -74,6 +74,14 @@ pub fn main() !void {
     var background_layer_3 = try rl.loadTexture("./assets/map/background_layer_3.png");
     defer background_layer_3.unload();
 
+    // UI sprites
+    var ui_pause = try rl.loadTexture("./assets/ui/pause_noborder_white.png");
+    defer ui_pause.unload();
+    var ui_heart = try rl.loadTexture("./assets/ui/heart_shaded.png");
+    defer ui_heart.unload();
+    var ui_coin = try rl.loadTexture("./assets/ui/coin_shaded.png");
+    defer ui_coin.unload();
+
     var game = Game.new(&app, &reg);
     game.tilemap = &tilemap;
     game.sprites.tileset_texture = &tileset_texture;
@@ -84,6 +92,9 @@ pub fn main() !void {
     game.sprites.background_layer_1_texture = &background_layer_1;
     game.sprites.background_layer_2_texture = &background_layer_2;
     game.sprites.background_layer_3_texture = &background_layer_3;
+    game.sprites.ui_pause = &ui_pause;
+    game.sprites.ui_heart = &ui_heart;
+    game.sprites.ui_coin = &ui_coin;
 
     // Load sounds
     game.sounds.soundtrack = try rl.loadSound("./assets/soundtrack.wav");
@@ -109,6 +120,7 @@ pub fn main() !void {
     var collision_system = systems.collision.CollisionSystem.init(alloc.allocator());
     defer collision_system.deinit();
 
+    game.start();
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
 
@@ -117,38 +129,44 @@ pub fn main() !void {
             rl.playSound(game.sounds.soundtrack);
         }
 
-        systems.disableNotVisible(game.reg, &camera);
-
-        systems.updateLifetimes(game.reg, delta_time);
-
-        // Reset game, if player is dead.
-        if (game.entities.isPlayerDead()) try reset(&game);
-
-        // Input
+        // App input
         handleAppInput(&game);
-        if (game.entities.isPlayerAlive()) {
-            handlePlayerInput(&game, delta_time);
+
+        if ((game.isPlaying() or game.entities.isPlayerDying())) {
+            systems.disableNotVisible(game.reg, &camera);
+
+            systems.updateLifetimes(game.reg, delta_time);
+
+            // Reset game, if player is dead.
+            if (game.entities.isPlayerDead()) try reset(&game);
+
+            // Player input
+            if (game.entities.isPlayerAlive()) {
+                handlePlayerInput(&game, delta_time);
+            }
+
+            // AI
+            updateEnemies(&game);
+
+            // Physics
+            systems.applyGravity(game.reg, 1980 * delta_time);
+            systems.clampVelocity(game.reg);
+            collision_system.onUpdate();
+            try detectCollisions(game.reg, &collision_system, delta_time);
+            handleCollisions(&game, &collision_system, delta_time);
+            systems.updatePosition(game.reg, delta_time);
+
+            // Graphics
+            graphics.camera.updateCameraTarget(
+                &camera,
+                game.entities.getPlayerCenter(),
+                m.Vec2.new(0.3, 0.3),
+            );
+            systems.scrollParallaxLayers(game.reg, &camera);
+            systems.updateAnimations(game.reg, delta_time);
         }
 
-        // AI
-        updateEnemies(&game);
-
-        // Physics
-        systems.applyGravity(game.reg, 1980 * delta_time);
-        systems.clampVelocity(game.reg);
-        collision_system.onUpdate();
-        try detectCollisions(game.reg, &collision_system, delta_time);
-        handleCollisions(&game, &collision_system, delta_time);
-        systems.updatePosition(game.reg, delta_time);
-
-        // Graphics
-        graphics.camera.updateCameraTarget(
-            &camera,
-            game.entities.getPlayerCenter(),
-            m.Vec2.new(0.3, 0.3),
-        );
-        systems.scrollParallaxLayers(game.reg, &camera);
-        systems.updateAnimations(game.reg, delta_time);
+        // Render
         systems.beginFrame(null);
         {
             camera.begin();
@@ -194,7 +212,13 @@ fn handleAppInput(game: *Game) void {
     }
 
     if (rl.isKeyPressed(.enter)) {
-        _ = prefabs.createEnemey2(game.reg, m.Vec2.new(544, 192), game.sprites.enemies_texture, game.sprites.enemies_atlas);
+        if (game.isPlaying()) {
+            game.pause();
+        } else if (game.isPaused() or game.playerLost()) {
+            game.unpause();
+        } else if (game.isGameover()) {
+            game.start();
+        }
     }
 }
 
@@ -264,9 +288,6 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
 /// Reset game state.
 fn reset(game: *Game) !void {
     const reg = game.reg;
-
-    // Reset score.
-    game.score = 0;
 
     // Clear entity references.
     game.entities.clear();
@@ -490,6 +511,8 @@ fn killPlayer(game: *Game) void {
         .flip_x = visual.animation.definition.flip_x,
         .padding = visual.animation.definition.padding,
     });
+
+    game.loose();
 }
 
 fn killEnemy(game: *Game, entity: entt.Entity) void {
@@ -734,12 +757,83 @@ fn handleCollisions(
 }
 
 fn drawHud(game: *Game) void {
-    const alloc = game.app.allocator;
-
-    const score_str = std.fmt.allocPrintZ(alloc, "SCORE: {d}", .{game.score}) catch unreachable;
-    defer alloc.free(score_str);
-
-    const offset_x = game.config.display.width - 150;
+    const font = rl.getFontDefault() catch unreachable;
     const font_size = 20;
-    rl.drawText(score_str, @intCast(offset_x), 10, font_size, rl.Color.ray_white);
+    const text_spacing = 2;
+    const symbol_scale = 3;
+    const padding = 10;
+    var offset: i32 = padding;
+
+    const ally = game.app.allocator;
+
+    // Draw lives.
+    {
+        const symbol_size: i32 = @intCast(game.sprites.ui_heart.width);
+        const symbols_width = @as(i32, @intCast(game.lives)) * symbol_size * symbol_scale;
+        for (0..game.lives) |i| {
+            const index: i32 = @intCast(i);
+            const offset_x = rl.getScreenWidth() - offset - symbols_width + index * symbol_size * symbol_scale;
+            game.sprites.ui_heart.drawEx(
+                rl.Vector2.init(@floatFromInt(offset_x), @floatFromInt(offset)),
+                0,
+                symbol_scale,
+                rl.Color.ray_white,
+            );
+        }
+        offset += symbol_size * symbol_scale;
+    }
+
+    // Draw score.
+    {
+        const symbol_size: i32 = @intCast(game.sprites.ui_coin.width);
+        const offset_x = rl.getScreenWidth() - padding - symbol_size * symbol_scale;
+        game.sprites.ui_coin.drawEx(
+            rl.Vector2.init(@floatFromInt(offset_x), @floatFromInt(offset + padding)),
+            0,
+            symbol_scale,
+            rl.Color.ray_white,
+        );
+
+        // Draw score text.
+        {
+            const text = std.fmt.allocPrintZ(ally, "{d}", .{game.score}) catch unreachable;
+            const text_size = rl.measureTextEx(font, text, font_size, text_spacing);
+            defer ally.free(text);
+            const offset_x_text = offset_x - @as(i32, @intFromFloat(text_size.x));
+            rl.drawText(
+                text,
+                @intCast(offset_x_text - padding),
+                offset + padding + @divTrunc(symbol_size * symbol_scale, 2) - @as(i32, @intFromFloat(text_size.y / 2)),
+                font_size,
+                rl.Color.ray_white,
+            );
+        }
+    }
+
+    if (game.isPaused()) {
+        graphics.text.drawSymbolAndTextCenteredHorizontally(
+            "PAUSED",
+            padding,
+            font,
+            font_size,
+            text_spacing,
+            padding,
+            game.sprites.ui_pause,
+            symbol_scale,
+        );
+    }
+    if (game.playerLost()) {
+        graphics.text.drawTextCentered(
+            "You lost! Press ENTER to restart.",
+            font_size,
+            rl.Color.ray_white,
+        );
+    }
+    if (game.isGameover()) {
+        graphics.text.drawTextCentered(
+            "GAME OVER! Press ENTER to restart.",
+            font_size,
+            rl.Color.ray_white,
+        );
+    }
 }

@@ -52,6 +52,10 @@ pub const GameEntities = struct {
         return self.player != null and !self.reg.getConst(comp.Player, self.player.?).dying;
     }
 
+    pub fn isPlayerDying(self: *Self) bool {
+        return self.player != null and self.reg.getConst(comp.Player, self.player.?).dying;
+    }
+
     pub fn isPlayerDead(self: *Self) bool {
         return self.player != null and !self.reg.valid(self.player.?);
     }
@@ -66,6 +70,9 @@ pub const GameSprites = struct {
     background_layer_1_texture: *const rl.Texture = undefined,
     background_layer_2_texture: *const rl.Texture = undefined,
     background_layer_3_texture: *const rl.Texture = undefined,
+    ui_pause: *const rl.Texture = undefined,
+    ui_heart: *const rl.Texture = undefined,
+    ui_coin: *const rl.Texture = undefined,
 };
 
 pub const GameSounds = struct {
@@ -123,6 +130,18 @@ pub const Game = struct {
         return self.state == .playing;
     }
 
+    pub fn isPaused(self: *const Self) bool {
+        return self.state == .paused;
+    }
+
+    pub fn playerLost(self: *const Self) bool {
+        return self.state == .lost;
+    }
+
+    pub fn isGameover(self: *const Self) bool {
+        return self.state == .gameover;
+    }
+
     pub fn start(self: *Self) void {
         self.state = .playing;
         self.timer.reset();
@@ -132,6 +151,10 @@ pub const Game = struct {
 
     pub fn pause(self: *Self) void {
         self.state = .paused;
+    }
+
+    pub fn unpause(self: *Self) void {
+        self.state = .playing;
     }
 
     pub fn loose(self: *Self) void {
