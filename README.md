@@ -62,6 +62,7 @@ List of all assets used in this game:
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `player.atlas.png`                                                              | [ULERINN: Old Man Character (modified)](https://ulerinn.itch.io/free-old-man)                                                     |
 | `enemies.atlas.png`                                                             | [ROTTING PIXELS: Enemy Character Pack ](https://rottingpixels.itch.io/enemy-characters-pack-free)                                 |
+| `coin.atlas.png`                                                                | [OZU: Coin](https://osmanfrat.itch.io/coin)                                                                                       |
 | `ui/*.png`                                                                      | [AR: RetroPixel Icons V1 (9x9)](https://opengameart.org/content/retropixel-icons-v1-9x9)                                          |
 | `map/background_layer_*.png`                                                    | [Free Pixel Art Fantasy 2D Battlegrounds](https://craftpix.net/freebies/free-pixel-art-fantasy-2d-battlegrounds/)                 |
 | `map/tileset.png`                                                               | [ANOKOLISA: Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                                                     |
