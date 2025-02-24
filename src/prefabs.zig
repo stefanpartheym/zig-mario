@@ -21,10 +21,11 @@ pub const VisualLayer = struct {
     pub const background_layer1: i32 = -3;
     pub const background_layer2: i32 = -2;
     pub const background_layer3: i32 = -1;
-    pub const player: i32 = 1;
-    pub const npcs: i32 = 1;
-    pub const items: i32 = 1;
-    pub const floating_text: i32 = 2;
+    pub const map_base_layer: i32 = 0;
+    pub const player: i32 = 10;
+    pub const npcs: i32 = 10;
+    pub const items: i32 = 10;
+    pub const floating_text: i32 = 11;
 };
 
 pub fn spawnPlayer(
@@ -110,7 +111,7 @@ pub fn createCoin(
     entities.setRenderable(
         reg,
         e,
-        comp.Position.fromVec2(spawn_pos),
+        comp.Position.fromVec2(spawn_pos.sub(shape.getSize().scale(0.5))),
         shape,
         comp.Visual.animation(texture, atlas, .{ .name = "coin_0", .speed = 8 }),
         comp.VisualLayer.new(VisualLayer.items),

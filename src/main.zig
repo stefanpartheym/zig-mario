@@ -339,7 +339,7 @@ fn reset(game: *Game) !void {
             tint,
             comp.ParallaxLayer{
                 .scroll_factor = m.Vec2.new(0.05, 0),
-                .offset = m.Vec2.new(0, 350),
+                .offset = m.Vec2.new(0, 400),
             },
             comp.VisualLayer.new(prefabs.VisualLayer.background_layer2),
         );
@@ -350,7 +350,7 @@ fn reset(game: *Game) !void {
             tint,
             comp.ParallaxLayer{
                 .scroll_factor = m.Vec2.new(0.1, 0),
-                .offset = m.Vec2.new(0, 600),
+                .offset = m.Vec2.new(0, 700),
             },
             comp.VisualLayer.new(prefabs.VisualLayer.background_layer3),
         );
@@ -383,8 +383,9 @@ fn reset(game: *Game) !void {
             @floatFromInt(tilemap.data.tileheight),
         );
         for (0..debug_map_scale) |debug_map_scale_index| {
-            for (tilemap.data.layers) |layer| {
+            for (tilemap.data.layers, 0..) |layer, layer_index| {
                 if (!layer.visible or layer.type != .tilelayer) continue;
+                const layer_index_i32: i32 = @intCast(layer_index);
                 var x: usize = 0;
                 var y: usize = 0;
                 for (layer.tiles) |tile_id| {
@@ -403,7 +404,7 @@ fn reset(game: *Game) !void {
                             comp.Position.fromVec2(pos),
                             shape,
                             comp.Visual.sprite(game.sprites.tileset_texture, tileset.getSpriteRect(tile_id)),
-                            null,
+                            comp.VisualLayer.new(prefabs.VisualLayer.map_base_layer + layer_index_i32),
                         );
                         // Add collision for first layer only.
                         if (layer.id < 2) {
