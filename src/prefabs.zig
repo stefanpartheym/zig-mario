@@ -23,13 +23,13 @@ pub const VisualLayer = struct {
     pub const background_layer2: i32 = -2;
     pub const background_layer3: i32 = -1;
     pub const map_base_layer: i32 = 0;
-    pub const player: i32 = 10;
     pub const npcs: i32 = 10;
     pub const items: i32 = 10;
-    pub const floating_text: i32 = 11;
+    pub const player: i32 = 11;
+    pub const floating_text: i32 = 12;
 };
 
-pub fn spawnPlayer(
+pub fn createPlayer(
     reg: *entt.Registry,
     entity: entt.Entity,
     spawn_pos: m.Vec2,
@@ -69,7 +69,7 @@ pub fn spawnPlayer(
         ),
     );
     reg.add(entity, comp.Gravity.new());
-    reg.add(entity, comp.Player.new());
+    reg.add(entity, comp.Player{});
 }
 
 pub fn createEnemey(
@@ -145,7 +145,7 @@ pub fn createGoal(
         comp.Position.fromVec2(spawn_pos.sub(shape.getSize().scale(0.5))),
         shape,
         comp.Visual.animation(texture, atlas, .{ .name = "portal_0", .speed = 5 }),
-        comp.VisualLayer.new(VisualLayer.items),
+        comp.VisualLayer.new(VisualLayer.items), // TODO: Use a separate layer.
     );
     reg.add(e, comp.Goal{});
     reg.add(e, comp.Collision.new(

@@ -90,7 +90,7 @@ pub fn main() !void {
     var ui_coin = try rl.loadTexture("./assets/ui/coin_shaded.png");
     defer ui_coin.unload();
 
-    var game = Game.new(&app, &reg);
+    var game = Game.new(&app, &reg, reset, restart);
     game.tilemap = &tilemap;
     game.sprites.tileset_texture = &tileset_texture;
     game.sprites.player_texture = &player_texture;
@@ -129,12 +129,9 @@ pub fn main() !void {
         .zoom = rl.getWindowScaleDPI().x,
     };
 
-    try reset(&game);
-
     var collision_system = systems.collision.CollisionSystem.init(alloc.allocator());
     defer collision_system.deinit();
 
-    game.start();
     while (app.isRunning()) {
         const delta_time = rl.getFrameTime();
 
@@ -150,19 +147,17 @@ pub fn main() !void {
             rl.pauseMusicStream(game.sounds.soundtrack);
         }
 
+        game.update(delta_time);
+
         // App input
         handleAppInput(&game);
 
-        if ((game.isPlaying() or game.entities.isPlayerDying())) {
+        if (game.state == .playing) {
             systems.disableNotVisible(game.reg, &camera);
-
             systems.updateLifetimes(game.reg, delta_time);
 
-            // Reset game, if player is dead.
-            if (game.entities.isPlayerDead()) try reset(&game);
-
             // Player input
-            if (game.entities.isPlayerAlive()) {
+            if (game.next_state == null) {
                 handlePlayerInput(&game, delta_time);
             }
 
@@ -178,7 +173,7 @@ pub fn main() !void {
             systems.updatePosition(game.reg, delta_time);
 
             // Graphics
-            if (game.entities.isPlayerAlive()) {
+            if (game.next_state == null) {
                 // Do not update camera when player died.
                 graphics.camera.updateCameraTarget(
                     &camera,
@@ -236,12 +231,9 @@ fn handleAppInput(game: *Game) void {
     }
 
     if (rl.isKeyPressed(.enter)) {
-        if (game.isPlaying()) {
-            game.pause();
-        } else if (game.isPaused() or game.playerLost()) {
-            game.unpause();
-        } else if (game.isGameover() or game.playerWon()) {
-            game.start();
+        switch (game.state) {
+            .playing => game.setState(.paused),
+            .ready, .paused, .won, .lost, .gameover => game.setState(.playing),
         }
     }
 }
@@ -307,6 +299,24 @@ fn handlePlayerInput(game: *Game, delta_time: f32) void {
 
     // Change animation.
     visual.animation.changeAnimation(next_animation);
+}
+
+fn spawnPlayer(game: *Game) !void {
+    const player_spawn_object = try game.tilemap.data.getObject("player_spawn");
+    const spawn_pos = m.Vec2.new(player_spawn_object.x, player_spawn_object.y);
+    prefabs.createPlayer(
+        game.reg,
+        game.entities.getPlayer(),
+        spawn_pos,
+        game.sprites.player_texture,
+        game.sprites.player_atlas,
+    );
+}
+
+/// Restart current level and preserve player progress.
+fn restart(game: *Game) !void {
+    game.entities.clear();
+    try spawnPlayer(game);
 }
 
 /// Reset game state.
@@ -468,17 +478,7 @@ fn reset(game: *Game) !void {
     }
 
     // Setup new player entity.
-    {
-        const player_spawn_object = try tilemap.data.getObject("player_spawn");
-        const spawn_pos = m.Vec2.new(player_spawn_object.x, player_spawn_object.y);
-        prefabs.spawnPlayer(
-            game.reg,
-            game.entities.getPlayer(),
-            spawn_pos,
-            game.sprites.player_texture,
-            game.sprites.player_atlas,
-        );
-    }
+    try spawnPlayer(game);
 
     // Spawn enemies.
     {
@@ -517,19 +517,12 @@ fn reset(game: *Game) !void {
 }
 
 fn killPlayer(game: *Game) void {
-    if (!game.entities.isPlayerAlive()) @panic("Player is already dead: Unable to kill player");
+    if (game.entities.player == null) @panic("No player entity present");
 
     game.playSound(game.sounds.die);
 
     const reg = game.reg;
     const e = game.entities.getPlayer();
-
-    // Add a lifetime component to make the player disappear.
-    reg.add(e, comp.Lifetime.new(1));
-
-    // Mark player as killed.
-    var player = reg.get(comp.Player, e);
-    player.kill();
 
     // Change collision mask to avoid further collision.
     var collision = reg.get(comp.Collision, e);
@@ -551,25 +544,25 @@ fn killPlayer(game: *Game) void {
         .padding = visual.animation.definition.padding,
     });
 
-    game.loose();
+    game.changeState(.lost, 1);
 }
 
 fn playerWin(game: *Game) void {
-    if (!game.entities.isPlayerAlive()) @panic("Player is already dead: Unable to win");
+    if (game.entities.player == null) @panic("No player entity present");
 
     game.playSound(game.sounds.portal);
 
     const reg = game.reg;
     const e = game.entities.getPlayer();
 
-    // Mark player as killed.
-    var player = reg.get(comp.Player, e);
-    player.kill();
+    // Make the player move slowly towards the goal.
+    reg.remove(comp.Collision, e);
+    reg.remove(comp.Gravity, e);
+    const speed = reg.get(comp.Speed, e);
+    var vel = reg.get(comp.Velocity, e);
+    vel.value = m.Vec2.new(speed.value.x() * 0.25, 0);
 
-    // Add a lifetime component to make the player disappear.
-    reg.add(e, comp.Lifetime.new(0.3));
-
-    game.win();
+    game.changeState(.won, 0.6);
 }
 
 fn killEnemy(game: *Game, entity: entt.Entity) void {
@@ -776,7 +769,7 @@ fn handleCollisions(
             // If the player is already dead, calling `killPlayer()` again will
             // crash the game, because adding/removing certain components will
             // fail.
-            if (use_entity_specific_response and game.entities.isPlayerAlive()) {
+            if (use_entity_specific_response and game.next_state != .lost) {
                 if (collide_with_enemy) {
                     const kill_enemy_normal: f32 = if (collider_is_player) 1 else -1;
                     if (result.normal.y() == kill_enemy_normal) {
@@ -870,8 +863,9 @@ fn drawHud(game: *Game) void {
         }
     }
 
-    if (game.isPaused()) {
-        graphics.text.drawSymbolAndTextCenteredHorizontally(
+    switch (game.state) {
+        .playing => {},
+        .paused => graphics.text.drawSymbolAndTextCenteredHorizontally(
             "PAUSED",
             padding,
             font,
@@ -880,27 +874,26 @@ fn drawHud(game: *Game) void {
             padding,
             game.sprites.ui_pause,
             symbol_scale,
-        );
-    }
-    if (game.playerWon()) {
-        graphics.text.drawTextCentered(
+        ),
+        .ready => graphics.text.drawTextCentered(
+            "Press ENTER to to start.",
+            font_size,
+            rl.Color.ray_white,
+        ),
+        .won => graphics.text.drawTextCentered(
             "Level completed! Press ENTER to continue.",
             font_size,
             rl.Color.ray_white,
-        );
-    }
-    if (game.playerLost()) {
-        graphics.text.drawTextCentered(
+        ),
+        .lost => graphics.text.drawTextCentered(
             "You lost! Press ENTER to restart.",
             font_size,
             rl.Color.ray_white,
-        );
-    }
-    if (game.isGameover()) {
-        graphics.text.drawTextCentered(
+        ),
+        .gameover => graphics.text.drawTextCentered(
             "GAME OVER! Press ENTER to restart.",
             font_size,
             rl.Color.ray_white,
-        );
+        ),
     }
 }

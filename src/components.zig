@@ -471,18 +471,11 @@ pub const Gravity = struct {
 // Game specific components
 //------------------------------------------------------------------------------
 
+/// TODO:
+/// Player component is currently only used for checks in collision system.
+/// It should be removed as we already store the player entity in the game state.
 pub const Player = struct {
-    const Self = @This();
-
-    dying: bool,
-
-    pub fn new() Self {
-        return Self{ .dying = false };
-    }
-
-    pub fn kill(self: *Self) void {
-        self.dying = true;
-    }
+    value: u8 = 0,
 };
 
 pub const EnemyType = enum {
