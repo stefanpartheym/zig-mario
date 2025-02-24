@@ -65,6 +65,8 @@ pub const GameSprites = struct {
     tileset_texture: *const rl.Texture = undefined,
     player_texture: *const rl.Texture = undefined,
     player_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
+    portal_texture: *const rl.Texture = undefined,
+    portal_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
     enemies_texture: *const rl.Texture = undefined,
     enemies_atlas: *graphics.sprites.AnimatedSpriteSheet = undefined,
     item_coin_texture: *const rl.Texture = undefined,
@@ -82,6 +84,7 @@ pub const GameSounds = struct {
     jump: rl.Sound = undefined,
     hit: rl.Sound = undefined,
     die: rl.Sound = undefined,
+    portal: rl.Sound = undefined,
     pickup_coin: rl.Sound = undefined,
 };
 
@@ -138,6 +141,10 @@ pub const Game = struct {
 
     pub fn playerLost(self: *const Self) bool {
         return self.state == .lost;
+    }
+
+    pub fn playerWon(self: *const Self) bool {
+        return self.state == .won;
     }
 
     pub fn isGameover(self: *const Self) bool {

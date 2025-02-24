@@ -14,7 +14,8 @@ pub const CollisionLayer = struct {
     pub const deadly_colliders: u32 = 0b00001000;
     pub const player: u32 = 0b10000000;
     pub const enemies: u32 = 0b01000000;
-    pub const collectables: u32 = 0b00100000;
+    pub const items: u32 = 0b00100000;
+    pub const goal: u32 = 0b00010000;
 };
 
 pub const VisualLayer = struct {
@@ -59,7 +60,11 @@ pub fn spawnPlayer(
         entity,
         comp.Collision.new(
             CollisionLayer.player,
-            CollisionLayer.map | CollisionLayer.enemies | CollisionLayer.collectables | CollisionLayer.deadly_colliders,
+            CollisionLayer.map |
+                CollisionLayer.enemies |
+                CollisionLayer.items |
+                CollisionLayer.deadly_colliders |
+                CollisionLayer.goal,
             shape.getSize(),
         ),
     );
@@ -118,7 +123,33 @@ pub fn createCoin(
     );
     reg.add(e, comp.Item{ .type = .coin });
     reg.add(e, comp.Collision.new(
-        CollisionLayer.collectables,
+        CollisionLayer.items,
+        CollisionLayer.player,
+        shape.getSize(),
+    ));
+    return e;
+}
+
+pub fn createGoal(
+    reg: *entt.Registry,
+    spawn_pos: m.Vec2,
+    texture: *const rl.Texture,
+    atlas: *graphics.sprites.AnimatedSpriteSheet,
+) entt.Entity {
+    const e = reg.create();
+    const scale = 4;
+    const shape = comp.Shape.rectangle(18 * scale, 30 * scale);
+    entities.setRenderable(
+        reg,
+        e,
+        comp.Position.fromVec2(spawn_pos.sub(shape.getSize().scale(0.5))),
+        shape,
+        comp.Visual.animation(texture, atlas, .{ .name = "portal_0", .speed = 5 }),
+        comp.VisualLayer.new(VisualLayer.items),
+    );
+    reg.add(e, comp.Goal{});
+    reg.add(e, comp.Collision.new(
+        CollisionLayer.goal,
         CollisionLayer.player,
         shape.getSize(),
     ));

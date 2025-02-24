@@ -58,14 +58,15 @@ zig build -Dtarget=wasm32-emscripten
 
 List of all assets used in this game:
 
-| File                                                                            | Source/Author                                                                                                                     |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `player.atlas.png`                                                              | [ULERINN: Old Man Character (modified)](https://ulerinn.itch.io/free-old-man)                                                     |
-| `enemies.atlas.png`                                                             | [ROTTING PIXELS: Enemy Character Pack ](https://rottingpixels.itch.io/enemy-characters-pack-free)                                 |
-| `coin.atlas.png`                                                                | [OZU: Coin](https://osmanfrat.itch.io/coin)                                                                                       |
-| `ui/*.png`                                                                      | [AR: RetroPixel Icons V1 (9x9)](https://opengameart.org/content/retropixel-icons-v1-9x9)                                          |
-| `map/background_layer_*.png`                                                    | [Free Pixel Art Fantasy 2D Battlegrounds](https://craftpix.net/freebies/free-pixel-art-fantasy-2d-battlegrounds/)                 |
-| `map/tileset.png`                                                               | [ANOKOLISA: Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                                                     |
-| `map/map.tmj`, `map/tileset.tsj`                                                | [stefanpartheym](https://github.com/stefanpartheym) with [Tiled Map Editor](https://www.mapeditor.org/)                           |
-| `sounds/die.wav`, `sounds/hit.wav`, `sounds/jump.wav`, `sounds/pickup_coin.wav` | [stefanpartheym](https://github.com/stefanpartheym) with [rfxgen](https://raylibtech.itch.io/rfxgen)                              |
-| `assets/soundtrack.wav`                                                         | [stefanpartheym](https://github.com/stefanpartheym) in [Ardour](https://ardour.org/) with [OB-Xd](https://www.discodsp.com/obxd/) |
+| File                             | Source/Author                                                                                                                     |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `player.atlas.png`               | [ULERINN: Old Man Character (modified)](https://ulerinn.itch.io/free-old-man)                                                     |
+| `enemies.atlas.png`              | [ROTTING PIXELS: Enemy Character Pack ](https://rottingpixels.itch.io/enemy-characters-pack-free)                                 |
+| `coin.atlas.png`                 | [OZU: Coin](https://osmanfrat.itch.io/coin)                                                                                       |
+| `portal.atlas.png`               | [Pixelnauta: Pixel Dimensional Portal 32x32](https://pixelnauta.itch.io/pixel-dimensional-portal-32x32)                           |
+| `ui/*.png`                       | [AR: RetroPixel Icons V1 (9x9)](https://opengameart.org/content/retropixel-icons-v1-9x9)                                          |
+| `map/background_layer_*.png`     | [Free Pixel Art Fantasy 2D Battlegrounds](https://craftpix.net/freebies/free-pixel-art-fantasy-2d-battlegrounds/)                 |
+| `map/tileset.png`                | [ANOKOLISA: Moon Graveyard Tileset](https://anokolisa.itch.io/moon-graveyard)                                                     |
+| `map/map.tmj`, `map/tileset.tsj` | [stefanpartheym](https://github.com/stefanpartheym) with [Tiled Map Editor](https://www.mapeditor.org/)                           |
+| `sounds/*.wav`                   | [stefanpartheym](https://github.com/stefanpartheym) with [rfxgen](https://raylibtech.itch.io/rfxgen)                              |
+| `assets/soundtrack.wav`          | [stefanpartheym](https://github.com/stefanpartheym) in [Ardour](https://ardour.org/) with [OB-Xd](https://www.discodsp.com/obxd/) |

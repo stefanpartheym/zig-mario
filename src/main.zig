@@ -61,6 +61,10 @@ pub fn main() !void {
     defer player_texture.unload();
     var player_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 3, 4, "player_");
     defer player_atlas.deinit();
+    const portal_texture = try rl.loadTexture("./assets/portal.atlas.png");
+    defer portal_texture.unload();
+    var portal_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 2, 3, "portal_");
+    defer portal_atlas.deinit();
     const enemies_texture = try rl.loadTexture("./assets/enemies.atlas.png");
     defer enemies_texture.unload();
     var enemies_atlas = try graphics.sprites.AnimatedSpriteSheet.initFromGrid(alloc.allocator(), 12, 2, "enemies_");
@@ -91,6 +95,8 @@ pub fn main() !void {
     game.sprites.tileset_texture = &tileset_texture;
     game.sprites.player_texture = &player_texture;
     game.sprites.player_atlas = &player_atlas;
+    game.sprites.portal_texture = &portal_texture;
+    game.sprites.portal_atlas = &portal_atlas;
     game.sprites.enemies_texture = &enemies_texture;
     game.sprites.enemies_atlas = &enemies_atlas;
     game.sprites.item_coin_texture = &coin_texture;
@@ -111,6 +117,8 @@ pub fn main() !void {
     defer rl.unloadSound(game.sounds.hit);
     game.sounds.die = try rl.loadSound("./assets/sounds/die.wav");
     defer rl.unloadSound(game.sounds.die);
+    game.sounds.portal = try rl.loadSound("./assets/sounds/portal.wav");
+    defer rl.unloadSound(game.sounds.portal);
     game.sounds.pickup_coin = try rl.loadSound("./assets/sounds/pickup_coin.wav");
     defer rl.unloadSound(game.sounds.pickup_coin);
 
@@ -232,7 +240,7 @@ fn handleAppInput(game: *Game) void {
             game.pause();
         } else if (game.isPaused() or game.playerLost()) {
             game.unpause();
-        } else if (game.isGameover()) {
+        } else if (game.isGameover() or game.playerWon()) {
             game.start();
         }
     }
@@ -489,9 +497,20 @@ fn reset(game: *Game) !void {
     {
         var objects_it = tilemap.data.objects_by_id.valueIterator();
         while (objects_it.next()) |object| {
-            const spawn_pos = m.Vec2.new(object.*.x, object.*.y);
             if (std.mem.eql(u8, object.*.type, "coin")) {
+                const spawn_pos = m.Vec2.new(object.*.x, object.*.y);
                 _ = prefabs.createCoin(game.reg, spawn_pos, game.sprites.item_coin_texture, game.sprites.item_coin_atlas);
+            }
+        }
+    }
+
+    // Setup goal.
+    {
+        var objects_it = tilemap.data.objects_by_id.valueIterator();
+        while (objects_it.next()) |object| {
+            if (std.mem.eql(u8, object.*.type, "goal")) {
+                const spawn_pos = m.Vec2.new(object.*.x, object.*.y);
+                _ = prefabs.createGoal(game.reg, spawn_pos, game.sprites.portal_texture, game.sprites.portal_atlas);
             }
         }
     }
@@ -533,6 +552,24 @@ fn killPlayer(game: *Game) void {
     });
 
     game.loose();
+}
+
+fn playerWin(game: *Game) void {
+    if (!game.entities.isPlayerAlive()) @panic("Player is already dead: Unable to win");
+
+    game.playSound(game.sounds.portal);
+
+    const reg = game.reg;
+    const e = game.entities.getPlayer();
+
+    // Mark player as killed.
+    var player = reg.get(comp.Player, e);
+    player.kill();
+
+    // Add a lifetime component to make the player disappear.
+    reg.add(e, comp.Lifetime.new(0.3));
+
+    game.win();
 }
 
 fn killEnemy(game: *Game, entity: entt.Entity) void {
@@ -727,10 +764,11 @@ fn handleCollisions(
             const collide_with_enemy = entity_is_enemy or collider_is_enemy;
             const collide_deadly = reg.has(comp.DeadlyCollider, collision.entity) or reg.has(comp.DeadlyCollider, collision.collider);
             const collide_item = reg.has(comp.Item, collision.entity) or reg.has(comp.Item, collision.collider);
+            const collide_goal = reg.has(comp.Goal, collision.entity) or reg.has(comp.Goal, collision.collider);
 
             const use_entity_specific_response =
                 (entity_is_player or collider_is_player) and
-                (collide_with_enemy or collide_deadly or collide_item);
+                (collide_with_enemy or collide_deadly or collide_item or collide_goal);
 
             // Use entity-specific collision response.
             // This is relevant, if the player collides with an enemy, a deadly collider or an item.
@@ -756,6 +794,8 @@ fn handleCollisions(
                     killPlayer(game);
                 } else if (collide_item) {
                     pickupItem(game, collision.collider);
+                } else if (collide_goal) {
+                    playerWin(game);
                 }
             }
             // Use default collision response.
@@ -840,6 +880,13 @@ fn drawHud(game: *Game) void {
             padding,
             game.sprites.ui_pause,
             symbol_scale,
+        );
+    }
+    if (game.playerWon()) {
+        graphics.text.drawTextCentered(
+            "Level completed! Press ENTER to continue.",
+            font_size,
+            rl.Color.ray_white,
         );
     }
     if (game.playerLost()) {

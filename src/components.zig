@@ -508,3 +508,7 @@ pub const Item = struct {
     type: ItemType,
     value: u8 = 0,
 };
+
+pub const Goal = struct {
+    value: u8 = 0,
+};
