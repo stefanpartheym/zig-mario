@@ -88,6 +88,7 @@ pub const Game = struct {
     reg: *entt.Registry,
     reset_fn: *const fn (self: *Self) anyerror!void,
     restart_fn: *const fn (self: *Self) anyerror!void,
+    kill_player_fn: *const fn (self: *Self) void,
 
     entities: GameEntities,
     sprites: GameSprites,
@@ -100,9 +101,12 @@ pub const Game = struct {
     lives: u8,
     /// Tracks the time elapsed since the the player started the game.
     /// When the player pauses the game, the timer is also paused.
-    timer: Timer,
+    level_timer: Timer,
+    /// Time in seconds the player has to finish the level.
+    level_time: f32,
     /// Tracks when to change to the next state.
     state_timer: Timer,
+    /// Time in seconds until the next state will be applied.
     state_delay: f32,
 
     pub fn new(
@@ -110,6 +114,7 @@ pub const Game = struct {
         reg: *entt.Registry,
         reset_fn: fn (self: *Self) anyerror!void,
         restart_fn: fn (self: *Self) anyerror!void,
+        kill_player_fn: fn (self: *Self) void,
     ) Self {
         return Self{
             .state = .ready,
@@ -119,6 +124,7 @@ pub const Game = struct {
             .reg = reg,
             .reset_fn = reset_fn,
             .restart_fn = restart_fn,
+            .kill_player_fn = kill_player_fn,
             .debug_mode = false,
             .audio_enabled = true,
             .entities = GameEntities.new(reg),
@@ -127,13 +133,20 @@ pub const Game = struct {
             .tilemap = undefined,
             .score = 0,
             .lives = 3,
-            .timer = Timer.new(),
+            .level_timer = Timer.new(),
+            .level_time = 100,
             .state_timer = Timer.new(),
             .state_delay = 0,
         };
     }
 
     pub fn update(self: *Self, delta: f32) void {
+        if (self.state == .playing) {
+            self.level_timer.update(delta);
+            if (self.next_state == null and self.level_timer.state >= self.level_time) {
+                self.kill_player_fn(self);
+            }
+        }
         if (self.next_state) |next_state| {
             self.state_timer.update(delta);
             if (self.state_timer.state >= self.state_delay) {
@@ -184,7 +197,7 @@ pub const Game = struct {
         switch (self.state) {
             .won, .gameover, .ready => switch (next_state) {
                 .playing => {
-                    self.timer.reset();
+                    self.level_timer.reset();
                     self.lives = 3;
                     self.score = 0;
                     // TODO: catch unreachable for now to avoid error handling.
@@ -194,7 +207,7 @@ pub const Game = struct {
             },
             .lost => switch (next_state) {
                 .playing => {
-                    self.timer.reset();
+                    self.level_timer.reset();
                     // TODO: catch unreachable for now to avoid error handling.
                     self.restart_fn(self) catch unreachable;
                 },

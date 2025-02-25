@@ -90,7 +90,7 @@ pub fn main() !void {
     var ui_coin = try rl.loadTexture("./assets/ui/coin_shaded.png");
     defer ui_coin.unload();
 
-    var game = Game.new(&app, &reg, reset, restart);
+    var game = Game.new(&app, &reg, reset, restart, killPlayer);
     game.tilemap = &tilemap;
     game.sprites.tileset_texture = &tileset_texture;
     game.sprites.player_texture = &player_texture;
@@ -863,6 +863,25 @@ fn drawHud(game: *Game) void {
         }
     }
 
+    // Draw timer.
+    {
+        const text = std.fmt.allocPrintZ(
+            ally,
+            "TIME: {d:0>3.0}",
+            .{game.level_time - game.level_timer.state},
+        ) catch unreachable;
+        const text_size = rl.measureTextEx(font, text, font_size, text_spacing);
+        defer ally.free(text);
+        const offset_x = rl.getScreenWidth() - padding - @as(i32, @intFromFloat(text_size.x));
+        rl.drawText(
+            text,
+            @intCast(offset_x),
+            rl.getScreenHeight() - padding - @as(i32, @intFromFloat(text_size.y)),
+            font_size,
+            rl.Color.ray_white,
+        );
+    }
+
     switch (game.state) {
         .playing => {},
         .paused => graphics.text.drawSymbolAndTextCenteredHorizontally(
@@ -881,17 +900,17 @@ fn drawHud(game: *Game) void {
             rl.Color.ray_white,
         ),
         .won => graphics.text.drawTextCentered(
-            "Level completed! Press ENTER to continue.",
+            "Level completed!\nPress ENTER to continue.",
             font_size,
             rl.Color.ray_white,
         ),
         .lost => graphics.text.drawTextCentered(
-            "You lost! Press ENTER to restart.",
+            "You died!\nPress ENTER to restart.",
             font_size,
             rl.Color.ray_white,
         ),
         .gameover => graphics.text.drawTextCentered(
-            "GAME OVER! Press ENTER to restart.",
+            "GAME OVER!\nPress ENTER to restart.",
             font_size,
             rl.Color.ray_white,
         ),
