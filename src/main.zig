@@ -315,6 +315,7 @@ fn spawnPlayer(game: *Game) !void {
 
 /// Restart current level and preserve player progress.
 fn restart(game: *Game) !void {
+    game.reg.destroy(game.entities.getPlayer());
     game.entities.clear();
     try spawnPlayer(game);
 }
