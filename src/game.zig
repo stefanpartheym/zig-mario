@@ -201,8 +201,7 @@ pub const Game = struct {
                 else => @panic("Invalid state transition"),
             },
             .playing => switch (next_state) {
-                .paused => {},
-                .won => new_state = .ready,
+                .paused, .won => {},
                 .lost => {
                     self.lives -= 1;
                     if (self.lives == 0) {
