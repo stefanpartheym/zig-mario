@@ -19,7 +19,7 @@ _source: [The 20 Games Challenge #6 (Super Mario)](https://20_games_challenge.gi
 - [ ] Add Koopas. Koopas will retreat into their shell when stomped on. The shell will move when hit again.
 - [ ] Add power ups. A mushroom will cause Mario to increase in size. Feel free to add stars or fire flowers as well.
 - [x] Make your own sprites, sound effects, and music. Pay special attention to the artwork for repeating tiles, pattern should look good when repeated.
-- [ ] Add a life counter and level timer. Mario will die if the timer reaches zero before he finds the level exit.
+- [x] Add a life counter and level timer. Mario will die if the timer reaches zero before he finds the level exit.
 
 ## TODO
 
