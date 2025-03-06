@@ -1,5 +1,8 @@
 # zig-mario
 
+> [!NOTE]
+> This project has now moved to [stefanpartheym/grandpa-trouble](https://github.com/stefanpartheym/grandpa-trouble).
+
 > My implementation of `Super Mario` in [zig](https://ziglang.org/) using [raylib](https://github.com/Not-Nik/raylib-zig) and an [ECS](https://github.com/prime31/zig-ecs).
 
 ![Screenshot](./screenshot.png)
